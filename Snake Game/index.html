@@ -3,7 +3,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>🐍 Snake · Profiles & Leaderboard</title>
+    <title>🐍 Snake · Global Leaderboard</title>
+
+    <!-- Firebase SDK (v9 compat – use modular via CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js">
+    </script>
+
     <style>
         /* ─── RESET & BASE ─── */
         * {
@@ -423,7 +430,7 @@
             font-style: italic;
         }
 
-        /* ─── DATA TOOLS ─── */
+        /* ─── DATA TOOLS (kept for backup, but now using Firebase) ─── */
         .data-tools {
             display: flex;
             gap: 10px;
@@ -532,6 +539,21 @@
         .w-full {
             width: 100%;
         }
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #6a8acf;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
     </style>
 </head>
 <body>
@@ -547,9 +569,7 @@
         <!-- ─── TAB: GAME ─── -->
         <div class="tab-panel active" id="panel-game">
             <!-- Auth / Profile bar -->
-            <div id="authContainer">
-                <!-- Will be replaced by JS -->
-            </div>
+            <div id="authContainer"></div>
 
             <div id="gameContainer" class="game-area hidden">
                 <div class="score-row">
@@ -581,9 +601,7 @@
             </div>
 
             <!-- Auth forms (shown when not logged in) -->
-            <div id="authForms">
-                <!-- Rendered by JS -->
-            </div>
+            <div id="authForms"></div>
         </div>
 
         <!-- ─── TAB: BILLBOARD ─── -->
@@ -591,7 +609,7 @@
             <div class="billboard" id="leaderboardContainer">
                 <h3>🏆 Global Leaderboard <span id="lbCount">0</span></h3>
                 <div id="leaderboardList">
-                    <div class="leader-empty">No users yet. Be the first!</div>
+                    <div class="leader-empty">Loading...</div>
                 </div>
                 <div class="data-tools">
                     <button id="exportDataBtn">📤 Export as .txt</button>
@@ -603,241 +621,260 @@
 
         <!-- ─── TAB: PROFILE ─── -->
         <div class="tab-panel" id="panel-profile">
-            <div id="profileContainer">
-                <!-- Rendered by JS -->
-            </div>
+            <div id="profileContainer"></div>
         </div>
     </div>
 
     <script>
         // ═══════════════════════════════════════════════════════════════════
-        //  SNAKE GAME – full implementation with profiles & leaderboard
+        //  FIREBASE CONFIG – Replace with your own Firebase project details
         // ═══════════════════════════════════════════════════════════════════
+        const firebaseConfig = {
+            apiKey: "AIzaSyDemoKeyReplaceMe", // <-- REPLACE with your API key
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
 
-        (function() {
-            'use strict';
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
 
-            // ─── DOM refs ────────────────────────────────────────────────
-            const $ = (s) => document.querySelector(s);
-            const $$ = (s) => document.querySelectorAll(s);
+        // ─── DOM refs ────────────────────────────────────────────────────
+        const $ = (s) => document.querySelector(s);
+        const $$ = (s) => document.querySelectorAll(s);
 
-            const canvas = $('#gameCanvas');
-            const ctx = canvas.getContext('2d');
-            const gameScore = $('#gameScore');
-            const gameBest = $('#gameBest');
-            const restartBtn = $('#restartBtn');
-            const tabBar = $('#tabBar');
-            const panels = {
-                game: $('#panel-game'),
-                billboard: $('#panel-billboard'),
-                profile: $('#panel-profile')
-            };
-            const authContainer = $('#authContainer');
-            const authForms = $('#authForms');
-            const gameContainer = $('#gameContainer');
-            const leaderboardList = $('#leaderboardList');
-            const lbCount = $('#lbCount');
-            const profileContainer = $('#profileContainer');
-            const exportBtn = $('#exportDataBtn');
-            const importBtn = $('#importDataBtn');
-            const importFileInput = $('#importFileInput');
+        const canvas = $('#gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameScore = $('#gameScore');
+        const gameBest = $('#gameBest');
+        const restartBtn = $('#restartBtn');
+        const tabBar = $('#tabBar');
+        const panels = {
+            game: $('#panel-game'),
+            billboard: $('#panel-billboard'),
+            profile: $('#panel-profile')
+        };
+        const authContainer = $('#authContainer');
+        const authForms = $('#authForms');
+        const gameContainer = $('#gameContainer');
+        const leaderboardList = $('#leaderboardList');
+        const lbCount = $('#lbCount');
+        const profileContainer = $('#profileContainer');
+        const exportBtn = $('#exportDataBtn');
+        const importBtn = $('#importDataBtn');
+        const importFileInput = $('#importFileInput');
 
-            // ─── CONSTANTS ──────────────────────────────────────────────
-            const GRID = 20;
-            const TILE = canvas.width / GRID;
-            const DIR = {
-                UP: { dx: 0, dy: -1 },
-                DOWN: { dx: 0, dy: 1 },
-                LEFT: { dx: -1, dy: 0 },
-                RIGHT: { dx: 1, dy: 0 }
-            };
-            const STORAGE_KEY = 'snakeLeaderboardData';
+        // ─── CONSTANTS ──────────────────────────────────────────────────
+        const GRID = 20;
+        const TILE = canvas.width / GRID;
+        const DIR = {
+            UP: { dx: 0, dy: -1 },
+            DOWN: { dx: 0, dy: 1 },
+            LEFT: { dx: -1, dy: 0 },
+            RIGHT: { dx: 1, dy: 0 }
+        };
 
-            // ─── STATE ──────────────────────────────────────────────────
-            let snake = [];
-            let food = { x: 8, y: 10 };
-            let direction = DIR.RIGHT;
-            let nextDirection = DIR.RIGHT;
-            let score = 0;
-            let gameOver = false;
-            let win = false;
-            let gameRunning = false;
-            let loopInterval = null;
-            let animFrame = null;
+        // ─── STATE ──────────────────────────────────────────────────────
+        let snake = [];
+        let food = { x: 8, y: 10 };
+        let direction = DIR.RIGHT;
+        let nextDirection = DIR.RIGHT;
+        let score = 0;
+        let gameOver = false;
+        let win = false;
+        let gameRunning = false;
+        let loopInterval = null;
+        let animFrame = null;
 
-            // Auth state
-            let currentUser = null; // { username, password, bestScore }
+        // Auth state
+        let currentUser = null; // { username, password, bestScore }
 
-            // All users
-            let allUsers = [];
+        // ─── FIREBASE HELPERS ────────────────────────────────────────────
 
-            // ─── STORAGE ──────────────────────────────────────────────────
-            function loadData() {
-                try {
-                    const raw = localStorage.getItem(STORAGE_KEY);
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        if (Array.isArray(parsed)) {
-                            allUsers = parsed;
-                            return;
-                        }
-                    }
-                } catch (_) {}
-                allUsers = [];
-            }
-
-            function saveData() {
-                try {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(allUsers));
-                } catch (_) {}
-            }
-
-            function findUser(username) {
-                return allUsers.find(u => u.username === username);
-            }
-
-            function addUser(username, password) {
-                if (findUser(username)) return false;
-                allUsers.push({ username, password, bestScore: 0 });
-                saveData();
-                return true;
-            }
-
-            function updateUserBest(username, newBest) {
-                const user = findUser(username);
-                if (user) {
-                    if (newBest > user.bestScore) {
-                        user.bestScore = newBest;
-                        saveData();
-                        return true;
-                    }
+        // Read all users from Firebase
+        function fetchAllUsers(callback) {
+            db.ref('users').once('value').then(snapshot => {
+                const data = snapshot.val();
+                if (data) {
+                    const users = Object.keys(data).map(key => ({
+                        username: key,
+                        password: data[key].password || '',
+                        bestScore: data[key].bestScore || 0
+                    }));
+                    callback(users);
+                } else {
+                    callback([]);
                 }
-                return false;
-            }
+            }).catch(err => {
+                console.error('Firebase read error:', err);
+                callback([]);
+            });
+        }
 
-            // ─── AUTH UI ──────────────────────────────────────────────────
-            function renderAuth() {
-                if (currentUser) {
-                    // Show profile bar
-                    const initial = currentUser.username.charAt(0).toUpperCase();
-                    authContainer.innerHTML = `
-                        <div class="profile-bar">
-                            <div class="user-info">
-                                <div class="avatar">${initial}</div>
-                                <span class="name">${escapeHtml(currentUser.username)}</span>
-                                <span class="best">🏆 ${currentUser.bestScore}</span>
-                            </div>
-                            <button class="logout-btn" id="logoutBtn">Logout</button>
+        // Write a user to Firebase
+        function writeUser(username, password, bestScore) {
+            return db.ref('users/' + username).set({
+                password: password,
+                bestScore: bestScore || 0
+            });
+        }
+
+        // Update best score for a user
+        function updateUserBest(username, newBest) {
+            return db.ref('users/' + username + '/bestScore').set(newBest);
+        }
+
+        // Check if user exists
+        function userExists(username, callback) {
+            db.ref('users/' + username).once('value').then(snapshot => {
+                callback(snapshot.exists());
+            }).catch(() => callback(false));
+        }
+
+        // Get user data
+        function getUserData(username, callback) {
+            db.ref('users/' + username).once('value').then(snapshot => {
+                if (snapshot.exists()) {
+                    callback(snapshot.val());
+                } else {
+                    callback(null);
+                }
+            }).catch(() => callback(null));
+        }
+
+        // ─── AUTH UI ──────────────────────────────────────────────────────
+        function renderAuth() {
+            if (currentUser) {
+                const initial = currentUser.username.charAt(0).toUpperCase();
+                authContainer.innerHTML = `
+                    <div class="profile-bar">
+                        <div class="user-info">
+                            <div class="avatar">${initial}</div>
+                            <span class="name">${escapeHtml(currentUser.username)}</span>
+                            <span class="best">🏆 ${currentUser.bestScore}</span>
                         </div>
-                    `;
-                    document.getElementById('logoutBtn').addEventListener('click', () => {
-                        currentUser = null;
-                        renderAll();
-                    });
-                    authForms.classList.add('hidden');
-                    gameContainer.classList.remove('hidden');
-                    // Update game best
-                    gameBest.textContent = currentUser.bestScore;
-                    return;
-                }
-
-                // Not logged in – show auth forms
-                authContainer.innerHTML = '';
-                authForms.classList.remove('hidden');
-                gameContainer.classList.add('hidden');
-
-                authForms.innerHTML = `
-                    <div class="auth-box" id="loginBox">
-                        <h3>🔐 Login</h3>
-                        <label>Username</label>
-                        <input type="text" id="loginUser" placeholder="Enter username" />
-                        <label>Password</label>
-                        <input type="password" id="loginPass" placeholder="Enter password" />
-                        <div class="auth-error" id="loginError"></div>
-                        <button class="btn-primary" id="loginBtn">Sign In</button>
-                        <div class="auth-switch">Don't have an account? <span id="switchToRegister">Register</span></div>
-                    </div>
-                    <div class="auth-box hidden" id="registerBox">
-                        <h3>📝 Register</h3>
-                        <label>Username</label>
-                        <input type="text" id="regUser" placeholder="Choose username" />
-                        <label>Password</label>
-                        <input type="password" id="regPass" placeholder="Choose password" />
-                        <div class="auth-error" id="regError"></div>
-                        <button class="btn-primary" id="regBtn">Create Account</button>
-                        <div class="auth-switch">Already have an account? <span id="switchToLogin">Login</span></div>
+                        <button class="logout-btn" id="logoutBtn">Logout</button>
                     </div>
                 `;
-
-                // Login
-                document.getElementById('loginBtn').addEventListener('click', () => doLogin());
-                document.getElementById('loginUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-                document.getElementById('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
-
-                // Register
-                document.getElementById('regBtn').addEventListener('click', () => doRegister());
-                document.getElementById('regUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
-                document.getElementById('regPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
-
-                // Switch
-                document.getElementById('switchToRegister').addEventListener('click', () => {
-                    document.getElementById('loginBox').classList.add('hidden');
-                    document.getElementById('registerBox').classList.remove('hidden');
+                document.getElementById('logoutBtn').addEventListener('click', () => {
+                    currentUser = null;
+                    renderAll();
                 });
-                document.getElementById('switchToLogin').addEventListener('click', () => {
-                    document.getElementById('registerBox').classList.add('hidden');
-                    document.getElementById('loginBox').classList.remove('hidden');
-                });
+                authForms.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+                gameBest.textContent = currentUser.bestScore;
+                return;
+            }
 
-                function doLogin() {
-                    const username = document.getElementById('loginUser').value.trim();
-                    const password = document.getElementById('loginPass').value.trim();
-                    const err = document.getElementById('loginError');
-                    if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
-                    const user = findUser(username);
-                    if (!user) { err.textContent = 'User not found.'; return; }
-                    if (user.password !== password) { err.textContent = 'Incorrect password.'; return; }
-                    currentUser = { ...user };
+            // Not logged in
+            authContainer.innerHTML = '';
+            authForms.classList.remove('hidden');
+            gameContainer.classList.add('hidden');
+
+            authForms.innerHTML = `
+                <div class="auth-box" id="loginBox">
+                    <h3>🔐 Login</h3>
+                    <label>Username</label>
+                    <input type="text" id="loginUser" placeholder="Enter username" />
+                    <label>Password</label>
+                    <input type="password" id="loginPass" placeholder="Enter password" />
+                    <div class="auth-error" id="loginError"></div>
+                    <button class="btn-primary" id="loginBtn">Sign In</button>
+                    <div class="auth-switch">Don't have an account? <span id="switchToRegister">Register</span></div>
+                </div>
+                <div class="auth-box hidden" id="registerBox">
+                    <h3>📝 Register</h3>
+                    <label>Username</label>
+                    <input type="text" id="regUser" placeholder="Choose username" />
+                    <label>Password</label>
+                    <input type="password" id="regPass" placeholder="Choose password" />
+                    <div class="auth-error" id="regError"></div>
+                    <button class="btn-primary" id="regBtn">Create Account</button>
+                    <div class="auth-switch">Already have an account? <span id="switchToLogin">Login</span></div>
+                </div>
+            `;
+
+            // Login
+            document.getElementById('loginBtn').addEventListener('click', () => doLogin());
+            document.getElementById('loginUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+            document.getElementById('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+            // Register
+            document.getElementById('regBtn').addEventListener('click', () => doRegister());
+            document.getElementById('regUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+            document.getElementById('regPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+
+            // Switch
+            document.getElementById('switchToRegister').addEventListener('click', () => {
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('registerBox').classList.remove('hidden');
+            });
+            document.getElementById('switchToLogin').addEventListener('click', () => {
+                document.getElementById('registerBox').classList.add('hidden');
+                document.getElementById('loginBox').classList.remove('hidden');
+            });
+
+            function doLogin() {
+                const username = document.getElementById('loginUser').value.trim();
+                const password = document.getElementById('loginPass').value.trim();
+                const err = document.getElementById('loginError');
+                if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
+                err.textContent = '⏳ Checking...';
+                getUserData(username, (data) => {
+                    if (!data) { err.textContent = 'User not found.'; return; }
+                    if (data.password !== password) { err.textContent = 'Incorrect password.'; return; }
+                    currentUser = { username, password, bestScore: data.bestScore || 0 };
                     err.textContent = '';
                     renderAll();
-                }
-
-                function doRegister() {
-                    const username = document.getElementById('regUser').value.trim();
-                    const password = document.getElementById('regPass').value.trim();
-                    const err = document.getElementById('regError');
-                    if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
-                    if (username.length < 2) { err.textContent = 'Username must be at least 2 characters.'; return; }
-                    if (password.length < 3) { err.textContent = 'Password must be at least 3 characters.'; return; }
-                    if (findUser(username)) { err.textContent = 'Username already taken.'; return; }
-                    addUser(username, password);
-                    currentUser = { username, password, bestScore: 0 };
-                    err.textContent = '';
-                    renderAll();
-                }
+                });
             }
 
-            function escapeHtml(str) {
-                const div = document.createElement('div');
-                div.textContent = str;
-                return div.innerHTML;
+            function doRegister() {
+                const username = document.getElementById('regUser').value.trim();
+                const password = document.getElementById('regPass').value.trim();
+                const err = document.getElementById('regError');
+                if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
+                if (username.length < 2) { err.textContent = 'Username must be at least 2 characters.'; return; }
+                if (password.length < 3) { err.textContent = 'Password must be at least 3 characters.'; return; }
+                err.textContent = '⏳ Checking...';
+                userExists(username, (exists) => {
+                    if (exists) { err.textContent = 'Username already taken.'; return; }
+                    writeUser(username, password, 0).then(() => {
+                        currentUser = { username, password, bestScore: 0 };
+                        err.textContent = '';
+                        renderAll();
+                    }).catch(() => {
+                        err.textContent = '❌ Firebase error. Check console.';
+                    });
+                });
             }
+        }
 
-            // ─── RENDER ALL ──────────────────────────────────────────────
-            function renderAll() {
-                loadData();
-                renderAuth();
-                renderLeaderboard();
-                renderProfile();
-                if (currentUser) {
-                    gameBest.textContent = currentUser.bestScore;
-                    gameScore.textContent = score;
-                }
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // ─── RENDER ALL ──────────────────────────────────────────────────
+        function renderAll() {
+            renderAuth();
+            renderLeaderboard();
+            renderProfile();
+            if (currentUser) {
+                gameBest.textContent = currentUser.bestScore;
+                gameScore.textContent = score;
             }
+        }
 
-            // ─── LEADERBOARD ─────────────────────────────────────────────
-            function renderLeaderboard() {
-                const sorted = [...allUsers].sort((a, b) => b.bestScore - a.bestScore);
+        // ─── LEADERBOARD ─────────────────────────────────────────────────
+        function renderLeaderboard() {
+            fetchAllUsers((users) => {
+                const sorted = [...users].sort((a, b) => b.bestScore - a.bestScore);
                 lbCount.textContent = sorted.length;
                 if (sorted.length === 0) {
                     leaderboardList.innerHTML = `<div class="leader-empty">No users yet. Be the first!</div>`;
@@ -863,18 +900,24 @@
                     `;
                 });
                 leaderboardList.innerHTML = html;
-            }
+            });
+        }
 
-            // ─── PROFILE TAB ─────────────────────────────────────────────
-            function renderProfile() {
-                if (!currentUser) {
-                    profileContainer.innerHTML = `
-                        <div class="auth-box" style="max-width:100%;text-align:center;padding:40px 20px;">
-                            <h3>👤 Profile</h3>
-                            <p style="color:#7a8aaa;margin-top:8px;">Please log in to view your profile.</p>
-                        </div>
-                    `;
-                    return;
+        // ─── PROFILE TAB ─────────────────────────────────────────────────
+        function renderProfile() {
+            if (!currentUser) {
+                profileContainer.innerHTML = `
+                    <div class="auth-box" style="max-width:100%;text-align:center;padding:40px 20px;">
+                        <h3>👤 Profile</h3>
+                        <p style="color:#7a8aaa;margin-top:8px;">Please log in to view your profile.</p>
+                    </div>
+                `;
+                return;
+            }
+            // Re-fetch latest best from Firebase
+            getUserData(currentUser.username, (data) => {
+                if (data) {
+                    currentUser.bestScore = data.bestScore || 0;
                 }
                 profileContainer.innerHTML = `
                     <div class="auth-box" style="max-width:100%;">
@@ -892,446 +935,439 @@
                             <span style="font-weight:400;color:#6a7a9a;">••••••••</span>
                         </div>
                         <div style="margin-top:16px;text-align:center;color:#6a7a9a;font-size:0.85rem;">
-                            Data stored locally in your browser.
+                            Data stored in Firebase Realtime Database.
                         </div>
                     </div>
                 `;
-            }
+            });
+        }
 
-            // ─── EXPORT / IMPORT ─────────────────────────────────────────
-            function exportData() {
-                loadData();
-                const dataStr = JSON.stringify(allUsers, null, 2);
+        // ─── EXPORT / IMPORT (as backup) ─────────────────────────────────
+        function exportData() {
+            fetchAllUsers((users) => {
+                const dataStr = JSON.stringify(users, null, 2);
                 const blob = new Blob([dataStr], { type: 'text/plain' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'snake_leaderboard_data.txt';
+                a.download = 'snake_leaderboard_backup.txt';
                 a.click();
                 URL.revokeObjectURL(url);
-            }
+            });
+        }
 
-            function importData(file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if (Array.isArray(data)) {
-                            allUsers = data;
-                            saveData();
-                            renderAll();
-                            alert('✅ Data imported successfully!');
-                        } else {
-                            alert('❌ Invalid file format.');
+        function importData(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!Array.isArray(data)) throw new Error('Not an array');
+                    // Write each user to Firebase
+                    let promises = data.map(u => {
+                        if (u.username && u.password !== undefined) {
+                            return writeUser(u.username, u.password, u.bestScore || 0);
                         }
-                    } catch (_) {
-                        alert('❌ Failed to parse file. Make sure it\'s a valid .txt export.');
-                    }
-                };
-                reader.readAsText(file);
-            }
+                        return Promise.resolve();
+                    });
+                    Promise.all(promises).then(() => {
+                        alert('✅ Data imported successfully to Firebase!');
+                        renderAll();
+                    }).catch(() => {
+                        alert('❌ Error writing to Firebase.');
+                    });
+                } catch (_) {
+                    alert('❌ Invalid file format. Must be a valid .txt export.');
+                }
+            };
+            reader.readAsText(file);
+        }
 
-            // ─── SNAKE GAME ──────────────────────────────────────────────
-            function resetGame() {
-                if (loopInterval) { clearInterval(loopInterval);
-                    loopInterval = null; }
-                snake = [
-                    { x: 9, y: 10 },
-                    { x: 8, y: 10 },
-                    { x: 7, y: 10 }
-                ];
-                direction = DIR.RIGHT;
-                nextDirection = DIR.RIGHT;
-                score = 0;
-                gameOver = false;
-                win = false;
-                gameRunning = true;
-                gameScore.textContent = '0';
-                if (currentUser) {
-                    gameBest.textContent = currentUser.bestScore;
-                }
-                generateFood();
-                draw();
-                startLoop();
+        // ─── SNAKE GAME ──────────────────────────────────────────────────
+        function resetGame() {
+            if (loopInterval) { clearInterval(loopInterval);
+                loopInterval = null; }
+            snake = [
+                { x: 9, y: 10 },
+                { x: 8, y: 10 },
+                { x: 7, y: 10 }
+            ];
+            direction = DIR.RIGHT;
+            nextDirection = DIR.RIGHT;
+            score = 0;
+            gameOver = false;
+            win = false;
+            gameRunning = true;
+            gameScore.textContent = '0';
+            if (currentUser) {
+                gameBest.textContent = currentUser.bestScore;
             }
+            generateFood();
+            draw();
+            startLoop();
+        }
 
-            function generateFood() {
-                const total = GRID * GRID;
-                if (snake.length >= total) { win = true;
-                    gameOver = true;
-                    gameRunning = false; return false; }
-                const free = [];
-                for (let y = 0; y < GRID; y++) {
-                    for (let x = 0; x < GRID; x++) {
-                        if (!isOnSnake(x, y)) free.push({ x, y });
-                    }
+        function generateFood() {
+            const total = GRID * GRID;
+            if (snake.length >= total) { win = true;
+                gameOver = true;
+                gameRunning = false; return false; }
+            const free = [];
+            for (let y = 0; y < GRID; y++) {
+                for (let x = 0; x < GRID; x++) {
+                    if (!isOnSnake(x, y)) free.push({ x, y });
                 }
-                if (free.length === 0) { win = true;
-                    gameOver = true;
-                    gameRunning = false; return false; }
-                const idx = Math.floor(Math.random() * free.length);
-                food = free[idx];
-                return true;
             }
+            if (free.length === 0) { win = true;
+                gameOver = true;
+                gameRunning = false; return false; }
+            const idx = Math.floor(Math.random() * free.length);
+            food = free[idx];
+            return true;
+        }
 
-            function isOnSnake(x, y, includeHead = true) {
-                const start = includeHead ? 0 : 1;
-                for (let i = start; i < snake.length; i++) {
-                    if (snake[i].x === x && snake[i].y === y) return true;
-                }
-                return false;
+        function isOnSnake(x, y, includeHead = true) {
+            const start = includeHead ? 0 : 1;
+            for (let i = start; i < snake.length; i++) {
+                if (snake[i].x === x && snake[i].y === y) return true;
             }
+            return false;
+        }
 
-            function step() {
-                if (!gameRunning || gameOver) return;
-                direction = nextDirection;
-                const head = snake[0];
-                const newHead = { x: head.x + direction.dx, y: head.y + direction.dy };
-                if (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID) {
-                    endGame();
-                    return;
-                }
-                const isEating = (newHead.x === food.x && newHead.y === food.y);
-                let newSnake = [newHead, ...snake];
-                if (!isEating) newSnake.pop();
-                if (newSnake.slice(1).some(s => s.x === newHead.x && s.y === newHead.y)) {
-                    endGame();
-                    return;
-                }
-                snake = newSnake;
-                if (isEating) {
-                    score++;
-                    gameScore.textContent = score;
-                    if (currentUser && score > currentUser.bestScore) {
-                        currentUser.bestScore = score;
-                        updateUserBest(currentUser.username, score);
+        function step() {
+            if (!gameRunning || gameOver) return;
+            direction = nextDirection;
+            const head = snake[0];
+            const newHead = { x: head.x + direction.dx, y: head.y + direction.dy };
+            if (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID) {
+                endGame();
+                return;
+            }
+            const isEating = (newHead.x === food.x && newHead.y === food.y);
+            let newSnake = [newHead, ...snake];
+            if (!isEating) newSnake.pop();
+            if (newSnake.slice(1).some(s => s.x === newHead.x && s.y === newHead.y)) {
+                endGame();
+                return;
+            }
+            snake = newSnake;
+            if (isEating) {
+                score++;
+                gameScore.textContent = score;
+                if (currentUser && score > currentUser.bestScore) {
+                    currentUser.bestScore = score;
+                    updateUserBest(currentUser.username, score).then(() => {
                         gameBest.textContent = score;
                         renderLeaderboard();
                         renderProfile();
-                    }
-                    if (!generateFood()) {
-                        endGame();
-                        return;
-                    }
+                    }).catch(() => {});
                 }
-                draw();
-            }
-
-            function endGame() {
-                gameOver = true;
-                gameRunning = false;
-                if (loopInterval) { clearInterval(loopInterval);
-                    loopInterval = null; }
-                draw();
-                if (win) {
-                    // already handled
+                if (!generateFood()) {
+                    endGame();
+                    return;
                 }
             }
+            draw();
+        }
 
-            function startLoop() {
-                if (loopInterval) clearInterval(loopInterval);
-                loopInterval = setInterval(step, 140);
-            }
+        function endGame() {
+            gameOver = true;
+            gameRunning = false;
+            if (loopInterval) { clearInterval(loopInterval);
+                loopInterval = null; }
+            draw();
+        }
 
-            function setDirection(newDir) {
-                if (!gameRunning || gameOver) return;
-                if (direction.dx === -newDir.dx && direction.dy === -newDir.dy) return;
-                nextDirection = newDir;
-            }
+        function startLoop() {
+            if (loopInterval) clearInterval(loopInterval);
+            loopInterval = setInterval(step, 140);
+        }
 
-            // ─── DRAW ─────────────────────────────────────────────────────
-            function draw() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Grid
-                ctx.strokeStyle = '#1c2f44';
-                ctx.lineWidth = 0.6;
-                for (let i = 0; i <= GRID; i++) {
-                    ctx.beginPath();
-                    ctx.moveTo(i * TILE, 0);
-                    ctx.lineTo(i * TILE, canvas.height);
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.moveTo(0, i * TILE);
-                    ctx.lineTo(canvas.width, i * TILE);
-                    ctx.stroke();
-                }
-                // Snake
-                if (snake.length) {
-                    for (let i = 1; i < snake.length; i++) {
-                        const s = snake[i];
-                        const x = s.x * TILE,
-                            y = s.y * TILE;
-                        const pad = i === snake.length - 1 ? 3 : 2;
-                        ctx.fillStyle = (i % 2 === 0) ? '#4ade80' : '#22c55e';
-                        ctx.shadowColor = 'rgba(74,222,128,0.2)';
-                        ctx.shadowBlur = 8;
-                        roundRect(ctx, x + pad, y + pad, TILE - pad * 2, TILE - pad * 2, 5);
-                        ctx.fill();
-                    }
-                    const h = snake[0];
-                    const hx = h.x * TILE,
-                        hy = h.y * TILE;
-                    ctx.shadowColor = 'rgba(251,191,36,0.5)';
-                    ctx.shadowBlur = 14;
-                    ctx.fillStyle = '#fbbf24';
-                    roundRect(ctx, hx + 1.5, hy + 1.5, TILE - 3, TILE - 3, 7);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    // Eyes
-                    ctx.fillStyle = '#0d1b2a';
-                    const cx = hx + TILE / 2,
-                        cy = hy + TILE / 2;
-                    let ex1, ey1, ex2, ey2;
-                    const d = direction;
-                    if (d === DIR.RIGHT) { ex1 = cx + 3;
-                        ey1 = cy - 5;
-                        ex2 = cx + 3;
-                        ey2 = cy + 5; } else if (d === DIR.LEFT) { ex1 = cx - 3;
-                        ey1 = cy - 5;
-                        ex2 = cx - 3;
-                        ey2 = cy + 5; } else if (d === DIR.UP) { ex1 = cx - 5;
-                        ey1 = cy - 3;
-                        ex2 = cx + 5;
-                        ey2 = cy - 3; } else { ex1 = cx - 5;
-                        ey1 = cy + 3;
-                        ex2 = cx + 5;
-                        ey2 = cy + 3; }
-                    ctx.beginPath();
-                    ctx.arc(ex1, ey1, 3.5, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(ex2, ey2, 3.5, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.fillStyle = '#f0f9ff';
-                    ctx.beginPath();
-                    ctx.arc(ex1 + 1.2, ey1 - 1.2, 1.2, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(ex2 + 1.2, ey2 - 1.2, 1.2, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                }
-                // Food
-                if (food && !win) {
-                    const fx = food.x * TILE + TILE / 2,
-                        fy = food.y * TILE + TILE / 2;
-                    const pulse = 1 + 0.08 * Math.sin(Date.now() / 200);
-                    const grad = ctx.createRadialGradient(fx, fy, 2, fx, fy, TILE * 0.7);
-                    grad.addColorStop(0, 'rgba(239,68,68,0.35)');
-                    grad.addColorStop(1, 'rgba(239,68,68,0)');
-                    ctx.fillStyle = grad;
-                    ctx.beginPath();
-                    ctx.arc(fx, fy, TILE * 0.7, 0, 2 * Math.PI);
-                    ctx.fill();
-                    const rad = (TILE / 2 - 2) * pulse;
-                    ctx.shadowColor = 'rgba(239,68,68,0.6)';
-                    ctx.shadowBlur = 20;
-                    ctx.fillStyle = '#ef4444';
-                    ctx.beginPath();
-                    ctx.arc(fx, fy, rad, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
-                    ctx.beginPath();
-                    ctx.arc(fx - 3, fy - 4, 4, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.strokeStyle = '#4a7c3f';
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    ctx.moveTo(fx + 1, fy - rad + 1);
-                    ctx.lineTo(fx + 4, fy - rad - 5);
-                    ctx.stroke();
-                    ctx.fillStyle = '#4a7c3f';
-                    ctx.beginPath();
-                    ctx.ellipse(fx + 6, fy - rad - 3, 4, 2.5, 0.5, 0, 2 * Math.PI);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                }
-                // Overlay
-                if (gameOver) {
-                    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    if (win) {
-                        ctx.fillStyle = '#fbbf24';
-                        ctx.font = 'bold 44px "Segoe UI",sans-serif';
-                        ctx.shadowColor = 'rgba(251,191,36,0.4)';
-                        ctx.shadowBlur = 30;
-                        ctx.fillText('🏆 YOU WIN!', canvas.width / 2, canvas.height / 2 - 30);
-                        ctx.shadowBlur = 0;
-                        ctx.fillStyle = '#e0e8f0';
-                        ctx.font = '20px "Segoe UI",sans-serif';
-                        ctx.fillText('Perfect board!', canvas.width / 2, canvas.height / 2 + 40);
-                    } else {
-                        ctx.fillStyle = '#f87171';
-                        ctx.font = 'bold 44px "Segoe UI",sans-serif';
-                        ctx.shadowColor = 'rgba(248,113,113,0.3)';
-                        ctx.shadowBlur = 30;
-                        ctx.fillText('💀 GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
-                        ctx.shadowBlur = 0;
-                        ctx.fillStyle = '#c0c8d8';
-                        ctx.font = '18px "Segoe UI",sans-serif';
-                        ctx.fillText('Tap "Restart" to try again', canvas.width / 2, canvas.height / 2 + 40);
-                    }
-                    ctx.shadowBlur = 0;
-                }
-            }
+        function setDirection(newDir) {
+            if (!gameRunning || gameOver) return;
+            if (direction.dx === -newDir.dx && direction.dy === -newDir.dy) return;
+            nextDirection = newDir;
+        }
 
-            function roundRect(ctx, x, y, w, h, r) {
+        // ─── DRAW ─────────────────────────────────────────────────────────
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = '#1c2f44';
+            ctx.lineWidth = 0.6;
+            for (let i = 0; i <= GRID; i++) {
                 ctx.beginPath();
-                ctx.moveTo(x + r, y);
-                ctx.lineTo(x + w - r, y);
-                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-                ctx.lineTo(x + w, y + h - r);
-                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-                ctx.lineTo(x + r, y + h);
-                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-                ctx.lineTo(x, y + r);
-                ctx.quadraticCurveTo(x, y, x + r, y);
-                ctx.closePath();
+                ctx.moveTo(i * TILE, 0);
+                ctx.lineTo(i * TILE, canvas.height);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(0, i * TILE);
+                ctx.lineTo(canvas.width, i * TILE);
+                ctx.stroke();
             }
-
-            // ─── ANIMATION LOOP ──────────────────────────────────────────
-            function animLoop() {
-                if (!gameOver) draw();
-                animFrame = requestAnimationFrame(animLoop);
-            }
-
-            // ─── KEYBOARD ────────────────────────────────────────────────
-            function onKey(e) {
-                const key = e.key;
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) e.preventDefault();
-                let nd = null;
-                if (key === 'ArrowUp' || key === 'w' || key === 'W') nd = DIR.UP;
-                else if (key === 'ArrowDown' || key === 's' || key === 'S') nd = DIR.DOWN;
-                else if (key === 'ArrowLeft' || key === 'a' || key === 'A') nd = DIR.LEFT;
-                else if (key === 'ArrowRight' || key === 'd' || key === 'D') nd = DIR.RIGHT;
-                if (nd) setDirection(nd);
-            }
-
-            // ─── TOUCH CONTROLS ──────────────────────────────────────────
-            function setupDpad() {
-                const btns = document.querySelectorAll('.dpad-btn[data-dir]');
-                btns.forEach(btn => {
-                    const dir = btn.dataset.dir;
-                    const handler = (e) => {
-                        e.preventDefault();
-                        let nd = null;
-                        if (dir === 'up') nd = DIR.UP;
-                        else if (dir === 'down') nd = DIR.DOWN;
-                        else if (dir === 'left') nd = DIR.LEFT;
-                        else if (dir === 'right') nd = DIR.RIGHT;
-                        if (nd) setDirection(nd);
-                    };
-                    btn.addEventListener('touchstart', handler, { passive: false });
-                    btn.addEventListener('mousedown', handler);
-                });
-            }
-
-            // ─── SWIPE ON CANVAS ─────────────────────────────────────────
-            let swipeStartX = 0,
-                swipeStartY = 0,
-                isSwiping = false;
-
-            function onTouchStart(e) {
-                const t = e.touches[0];
-                if (!t) return;
-                const rect = canvas.getBoundingClientRect();
-                swipeStartX = t.clientX - rect.left;
-                swipeStartY = t.clientY - rect.top;
-                isSwiping = true;
-            }
-
-            function onTouchMove(e) {
-                if (!isSwiping || !gameRunning || gameOver) return;
-                e.preventDefault();
-                const t = e.touches[0];
-                if (!t) return;
-                const rect = canvas.getBoundingClientRect();
-                const cx = t.clientX - rect.left,
-                    cy = t.clientY - rect.top;
-                const dx = cx - swipeStartX,
-                    dy = cy - swipeStartY;
-                const minSwipe = 16;
-                if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
-                let nd = null;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    nd = dx > 0 ? DIR.RIGHT : DIR.LEFT;
-                } else {
-                    nd = dy > 0 ? DIR.DOWN : DIR.UP;
+            if (snake.length) {
+                for (let i = 1; i < snake.length; i++) {
+                    const s = snake[i];
+                    const x = s.x * TILE,
+                        y = s.y * TILE;
+                    const pad = i === snake.length - 1 ? 3 : 2;
+                    ctx.fillStyle = (i % 2 === 0) ? '#4ade80' : '#22c55e';
+                    ctx.shadowColor = 'rgba(74,222,128,0.2)';
+                    ctx.shadowBlur = 8;
+                    roundRect(ctx, x + pad, y + pad, TILE - pad * 2, TILE - pad * 2, 5);
+                    ctx.fill();
                 }
-                if (nd) { setDirection(nd);
-                    swipeStartX = cx;
-                    swipeStartY = cy; }
+                const h = snake[0];
+                const hx = h.x * TILE,
+                    hy = h.y * TILE;
+                ctx.shadowColor = 'rgba(251,191,36,0.5)';
+                ctx.shadowBlur = 14;
+                ctx.fillStyle = '#fbbf24';
+                roundRect(ctx, hx + 1.5, hy + 1.5, TILE - 3, TILE - 3, 7);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#0d1b2a';
+                const cx = hx + TILE / 2,
+                    cy = hy + TILE / 2;
+                let ex1, ey1, ex2, ey2;
+                const d = direction;
+                if (d === DIR.RIGHT) { ex1 = cx + 3;
+                    ey1 = cy - 5;
+                    ex2 = cx + 3;
+                    ey2 = cy + 5; } else if (d === DIR.LEFT) { ex1 = cx - 3;
+                    ey1 = cy - 5;
+                    ex2 = cx - 3;
+                    ey2 = cy + 5; } else if (d === DIR.UP) { ex1 = cx - 5;
+                    ey1 = cy - 3;
+                    ex2 = cx + 5;
+                    ey2 = cy - 3; } else { ex1 = cx - 5;
+                    ey1 = cy + 3;
+                    ex2 = cx + 5;
+                    ey2 = cy + 3; }
+                ctx.beginPath();
+                ctx.arc(ex1, ey1, 3.5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(ex2, ey2, 3.5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.fillStyle = '#f0f9ff';
+                ctx.beginPath();
+                ctx.arc(ex1 + 1.2, ey1 - 1.2, 1.2, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(ex2 + 1.2, ey2 - 1.2, 1.2, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
-
-            function onTouchEnd() { isSwiping = false; }
-
-            // ─── TABS ─────────────────────────────────────────────────────
-            function setupTabs() {
-                tabBar.addEventListener('click', (e) => {
-                    const btn = e.target.closest('.tab-btn');
-                    if (!btn) return;
-                    const tab = btn.dataset.tab;
-                    $$('.tab-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    Object.keys(panels).forEach(key => {
-                        panels[key].classList.toggle('active', key === tab);
-                    });
-                });
+            if (food && !win) {
+                const fx = food.x * TILE + TILE / 2,
+                    fy = food.y * TILE + TILE / 2;
+                const pulse = 1 + 0.08 * Math.sin(Date.now() / 200);
+                const grad = ctx.createRadialGradient(fx, fy, 2, fx, fy, TILE * 0.7);
+                grad.addColorStop(0, 'rgba(239,68,68,0.35)');
+                grad.addColorStop(1, 'rgba(239,68,68,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(fx, fy, TILE * 0.7, 0, 2 * Math.PI);
+                ctx.fill();
+                const rad = (TILE / 2 - 2) * pulse;
+                ctx.shadowColor = 'rgba(239,68,68,0.6)';
+                ctx.shadowBlur = 20;
+                ctx.fillStyle = '#ef4444';
+                ctx.beginPath();
+                ctx.arc(fx, fy, rad, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.beginPath();
+                ctx.arc(fx - 3, fy - 4, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#4a7c3f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(fx + 1, fy - rad + 1);
+                ctx.lineTo(fx + 4, fy - rad - 5);
+                ctx.stroke();
+                ctx.fillStyle = '#4a7c3f';
+                ctx.beginPath();
+                ctx.ellipse(fx + 6, fy - rad - 3, 4, 2.5, 0.5, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
+            if (gameOver) {
+                ctx.fillStyle = 'rgba(0,0,0,0.65)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                if (win) {
+                    ctx.fillStyle = '#fbbf24';
+                    ctx.font = 'bold 44px "Segoe UI",sans-serif';
+                    ctx.shadowColor = 'rgba(251,191,36,0.4)';
+                    ctx.shadowBlur = 30;
+                    ctx.fillText('🏆 YOU WIN!', canvas.width / 2, canvas.height / 2 - 30);
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#e0e8f0';
+                    ctx.font = '20px "Segoe UI",sans-serif';
+                    ctx.fillText('Perfect board!', canvas.width / 2, canvas.height / 2 + 40);
+                } else {
+                    ctx.fillStyle = '#f87171';
+                    ctx.font = 'bold 44px "Segoe UI",sans-serif';
+                    ctx.shadowColor = 'rgba(248,113,113,0.3)';
+                    ctx.shadowBlur = 30;
+                    ctx.fillText('💀 GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#c0c8d8';
+                    ctx.font = '18px "Segoe UI",sans-serif';
+                    ctx.fillText('Tap "Restart" to try again', canvas.width / 2, canvas.height / 2 + 40);
+                }
+                ctx.shadowBlur = 0;
+            }
+        }
 
-            // ─── INIT ─────────────────────────────────────────────────────
-            function init() {
-                loadData();
-                renderAll();
+        function roundRect(ctx, x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+        }
 
-                // Game
-                resetGame();
+        // ─── ANIMATION LOOP ──────────────────────────────────────────────
+        function animLoop() {
+            if (!gameOver) draw();
+            animFrame = requestAnimationFrame(animLoop);
+        }
 
-                // Events
-                window.addEventListener('keydown', onKey);
-                restartBtn.addEventListener('click', () => resetGame());
-                restartBtn.addEventListener('touchstart', (e) => { e.preventDefault();
-                    resetGame(); }, { passive: false });
+        // ─── KEYBOARD ────────────────────────────────────────────────────
+        function onKey(e) {
+            const key = e.key;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) e.preventDefault();
+            let nd = null;
+            if (key === 'ArrowUp' || key === 'w' || key === 'W') nd = DIR.UP;
+            else if (key === 'ArrowDown' || key === 's' || key === 'S') nd = DIR.DOWN;
+            else if (key === 'ArrowLeft' || key === 'a' || key === 'A') nd = DIR.LEFT;
+            else if (key === 'ArrowRight' || key === 'd' || key === 'D') nd = DIR.RIGHT;
+            if (nd) setDirection(nd);
+        }
 
-                // Canvas touch swipe
-                canvas.addEventListener('touchstart', onTouchStart, { passive: true });
-                canvas.addEventListener('touchmove', onTouchMove, { passive: false });
-                canvas.addEventListener('touchend', onTouchEnd, { passive: true });
-                canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
+        // ─── TOUCH CONTROLS ──────────────────────────────────────────────
+        function setupDpad() {
+            const btns = document.querySelectorAll('.dpad-btn[data-dir]');
+            btns.forEach(btn => {
+                const dir = btn.dataset.dir;
+                const handler = (e) => {
+                    e.preventDefault();
+                    let nd = null;
+                    if (dir === 'up') nd = DIR.UP;
+                    else if (dir === 'down') nd = DIR.DOWN;
+                    else if (dir === 'left') nd = DIR.LEFT;
+                    else if (dir === 'right') nd = DIR.RIGHT;
+                    if (nd) setDirection(nd);
+                };
+                btn.addEventListener('touchstart', handler, { passive: false });
+                btn.addEventListener('mousedown', handler);
+            });
+        }
 
-                setupDpad();
-                setupTabs();
+        // ─── SWIPE ON CANVAS ─────────────────────────────────────────────
+        let swipeStartX = 0,
+            swipeStartY = 0,
+            isSwiping = false;
 
-                // Export / Import
-                exportBtn.addEventListener('click', exportData);
-                importBtn.addEventListener('click', () => importFileInput.click());
-                importFileInput.addEventListener('change', (e) => {
-                    if (e.target.files.length) {
-                        importData(e.target.files[0]);
-                        e.target.value = '';
-                    }
+        function onTouchStart(e) {
+            const t = e.touches[0];
+            if (!t) return;
+            const rect = canvas.getBoundingClientRect();
+            swipeStartX = t.clientX - rect.left;
+            swipeStartY = t.clientY - rect.top;
+            isSwiping = true;
+        }
+
+        function onTouchMove(e) {
+            if (!isSwiping || !gameRunning || gameOver) return;
+            e.preventDefault();
+            const t = e.touches[0];
+            if (!t) return;
+            const rect = canvas.getBoundingClientRect();
+            const cx = t.clientX - rect.left,
+                cy = t.clientY - rect.top;
+            const dx = cx - swipeStartX,
+                dy = cy - swipeStartY;
+            const minSwipe = 16;
+            if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
+            let nd = null;
+            if (Math.abs(dx) > Math.abs(dy)) {
+                nd = dx > 0 ? DIR.RIGHT : DIR.LEFT;
+            } else {
+                nd = dy > 0 ? DIR.DOWN : DIR.UP;
+            }
+            if (nd) { setDirection(nd);
+                swipeStartX = cx;
+                swipeStartY = cy; }
+        }
+
+        function onTouchEnd() { isSwiping = false; }
+
+        // ─── TABS ─────────────────────────────────────────────────────────
+        function setupTabs() {
+            tabBar.addEventListener('click', (e) => {
+                const btn = e.target.closest('.tab-btn');
+                if (!btn) return;
+                const tab = btn.dataset.tab;
+                $$('.tab-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                Object.keys(panels).forEach(key => {
+                    panels[key].classList.toggle('active', key === tab);
                 });
+                if (tab === 'billboard') renderLeaderboard();
+                if (tab === 'profile') renderProfile();
+            });
+        }
 
-                // Animation
-                if (animFrame) cancelAnimationFrame(animFrame);
-                animLoop();
+        // ─── INIT ─────────────────────────────────────────────────────────
+        function init() {
+            renderAll();
+            resetGame();
 
-                // Re-render leaderboard on tab switch
-                document.querySelector('[data-tab="billboard"]').addEventListener('click', () => {
+            window.addEventListener('keydown', onKey);
+            restartBtn.addEventListener('click', () => resetGame());
+            restartBtn.addEventListener('touchstart', (e) => { e.preventDefault();
+                resetGame(); }, { passive: false });
+
+            canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+            canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+            canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+            canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+            setupDpad();
+            setupTabs();
+
+            exportBtn.addEventListener('click', exportData);
+            importBtn.addEventListener('click', () => importFileInput.click());
+            importFileInput.addEventListener('change', (e) => {
+                if (e.target.files.length) {
+                    importData(e.target.files[0]);
+                    e.target.value = '';
+                }
+            });
+
+            if (animFrame) cancelAnimationFrame(animFrame);
+            animLoop();
+
+            // Refresh leaderboard periodically (every 10s)
+            setInterval(() => {
+                if (document.querySelector('[data-tab="billboard"].active')) {
                     renderLeaderboard();
-                });
-                document.querySelector('[data-tab="profile"]').addEventListener('click', () => {
-                    renderProfile();
-                });
-            }
+                }
+            }, 10000);
+        }
 
-            // ─── START ───────────────────────────────────────────────────
-            init();
-
-        })();
+        // ─── START ───────────────────────────────────────────────────────
+        init();
     </script>
 </body>
 </html>
