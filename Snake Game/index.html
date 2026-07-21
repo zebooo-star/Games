@@ -3,162 +3,307 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Classic Snake Game</title>
+    <title>🐍 Snake · Profiles & Leaderboard</title>
     <style>
-        /* ── Reset & base ── */
+        /* ─── RESET & BASE ─── */
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
         }
-
         body {
-            background: #1a1a2e;
+            background: #0f0e1a;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            touch-action: pan-y;
-            /* prevent pull-to-refresh on vertical swipes */;
+            padding: 16px;
+            color: #e8ecf1;
         }
 
-        /* ── Game container ── */
-        .game-wrapper {
-            background: #16213e;
-            padding: 20px 24px 28px;
-            border-radius: 28px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        /* ─── APP WRAPPER ─── */
+        .app {
+            max-width: 840px;
+            width: 100%;
+            background: #1a1a2e;
+            border-radius: 32px;
+            padding: 24px 28px 32px;
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        /* ─── TABS ─── */
+        .tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 20px;
+            background: #12121f;
+            border-radius: 60px;
+            padding: 4px;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            flex: 1;
+            min-width: 80px;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #8892a8;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: 0.2s;
+            text-align: center;
+            touch-action: manipulation;
+        }
+        .tab-btn:hover {
+            color: #c8d0e0;
+        }
+        .tab-btn.active {
+            background: #2a2a4a;
+            color: #f0f4ff;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+        .tab-panel {
+            display: none;
+            animation: fade 0.25s ease;
+        }
+        .tab-panel.active {
+            display: block;
+        }
+        @keyframes fade {
+            0% {
+                opacity: 0.3;
+                transform: translateY(6px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ─── AUTH FORMS ─── */
+        .auth-box {
+            background: #14142a;
+            border-radius: 20px;
+            padding: 24px 28px;
+            max-width: 400px;
+            margin: 0 auto 12px;
+            border: 1px solid #2a2a48;
+        }
+        .auth-box h3 {
+            font-weight: 600;
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #d0d8ee;
+            text-align: center;
+        }
+        .auth-box label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #8a9ab8;
+            margin-top: 12px;
+            margin-bottom: 4px;
+        }
+        .auth-box input {
+            width: 100%;
+            padding: 12px 14px;
+            background: #1e1e3a;
+            border: 1px solid #2e2e52;
+            border-radius: 12px;
+            color: #e8ecf1;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.2s;
+        }
+        .auth-box input:focus {
+            border-color: #5a6aae;
+            box-shadow: 0 0 0 3px rgba(90, 106, 174, 0.25);
+        }
+        .auth-box .btn-primary {
+            width: 100%;
+            margin-top: 18px;
+            padding: 12px;
+            background: #4a5a9e;
+            border: none;
+            border-radius: 40px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            touch-action: manipulation;
+        }
+        .auth-box .btn-primary:hover {
+            background: #5a6aae;
+        }
+        .auth-box .btn-primary:active {
+            transform: scale(0.97);
+        }
+        .auth-switch {
+            text-align: center;
+            margin-top: 14px;
+            font-size: 0.9rem;
+            color: #7a8aaa;
+        }
+        .auth-switch span {
+            color: #6a8acf;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .auth-switch span:hover {
+            text-decoration: underline;
+        }
+        .auth-error {
+            color: #f87171;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            text-align: center;
+            min-height: 20px;
+        }
+
+        /* ─── PROFILE BAR ─── */
+        .profile-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #14142a;
+            border-radius: 60px;
+            padding: 6px 18px 6px 22px;
+            margin-bottom: 18px;
+            border: 1px solid #2a2a48;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .profile-bar .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+        .profile-bar .user-info .avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #4a5a9e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            color: #fff;
+        }
+        .profile-bar .user-info .name {
+            color: #c8d8f0;
+        }
+        .profile-bar .user-info .best {
+            color: #f5c842;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .profile-bar .logout-btn {
+            background: transparent;
+            border: 1px solid #4a3a5a;
+            color: #b0a8c0;
+            padding: 6px 18px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            touch-action: manipulation;
+        }
+        .profile-bar .logout-btn:hover {
+            background: #2a1a3a;
+            border-color: #6a5a7a;
+        }
+
+        /* ─── GAME AREA ─── */
+        .game-area {
             display: flex;
             flex-direction: column;
             align-items: center;
-            max-width: 560px;
-            width: 100%;
-            margin: 12px;
-            user-select: none;
-            -webkit-user-select: none;
-            touch-action: pan-y;
+            gap: 14px;
         }
-
-        /* ── Header: score + best ── */
-        .header {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 14px;
-            color: #e0e0e0;
-            font-weight: 600;
-            letter-spacing: 0.3px;
-            flex-wrap: wrap;
-            gap: 6px;
-        }
-
-        .score-box,
-        .best-box {
-            background: #0f3460;
-            padding: 6px 18px;
-            border-radius: 40px;
-            font-size: 1rem;
-            box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .score-box span,
-        .best-box span {
-            color: #a8d8ea;
-            font-weight: 300;
-        }
-
-        .score-box .value,
-        .best-box .value {
-            color: #f5c842;
-            font-weight: 700;
-            font-size: 1.3rem;
-            min-width: 2rem;
-            text-align: center;
-        }
-
-        .best-box .value {
-            color: #6bcb77;
-        }
-
-        /* ── Canvas ── */
-        .canvas-container {
+        .game-area .canvas-wrap {
             position: relative;
             width: 100%;
-            aspect-ratio: 1 / 1;
-            max-width: 480px;
-            touch-action: none;
-        }
-
-        canvas {
-            display: block;
-            background: #0d1b2a;
+            max-width: 440px;
+            aspect-ratio: 1/1;
             border-radius: 18px;
+            overflow: hidden;
+            background: #0d1b2a;
             box-shadow: inset 0 0 0 2px #2a3a5e, 0 12px 28px rgba(0, 0, 0, 0.7);
+        }
+        .game-area .canvas-wrap canvas {
+            display: block;
             width: 100%;
             height: 100%;
             image-rendering: pixelated;
             touch-action: none;
-            cursor: pointer;
+        }
+        .game-area .score-row {
+            display: flex;
+            gap: 24px;
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #b0c0d8;
+        }
+        .game-area .score-row span {
+            color: #f5c842;
+            font-size: 1.4rem;
+        }
+        .game-area .score-row .best-score {
+            color: #6bcb77;
         }
 
-        /* ── Touch controls (D-pad) ── */
-        .touch-controls {
-            width: 100%;
-            max-width: 400px;
-            margin-top: 18px;
+        /* ─── TOUCH CONTROLS ─── */
+        .touch-grid {
             display: grid;
-            grid-template-columns: 80px 80px 80px;
-            grid-template-rows: 80px 80px 80px;
-            gap: 6px;
+            grid-template-columns: 68px 68px 68px;
+            grid-template-rows: 68px 68px 68px;
+            gap: 5px;
             justify-content: center;
+            margin-top: 6px;
             touch-action: none;
         }
-
-        .touch-btn {
-            background: rgba(15, 52, 96, 0.85);
-            border: 2px solid rgba(42, 58, 94, 0.6);
-            border-radius: 18px;
-            color: #e8f0f8;
-            font-size: 2.2rem;
+        .touch-grid .dpad-btn {
+            background: rgba(20, 20, 50, 0.9);
+            border: 1px solid #3a3a5a;
+            border-radius: 16px;
+            color: #b8c8e0;
+            font-size: 1.8rem;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            transition: background 0.08s, transform 0.08s;
-            box-shadow: 0 4px 0 #091a2e, 0 6px 16px rgba(0, 0, 0, 0.3);
             touch-action: none;
-            -webkit-tap-highlight-color: transparent;
             user-select: none;
-            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            transition: 0.06s;
+            box-shadow: 0 3px 0 #0a0a1a;
         }
-
-        .touch-btn:active {
-            background: rgba(26, 74, 122, 0.95);
-            transform: scale(0.94);
-            box-shadow: 0 1px 0 #091a2e;
+        .touch-grid .dpad-btn:active {
+            transform: scale(0.93);
+            background: rgba(40, 40, 80, 0.95);
+            box-shadow: 0 1px 0 #0a0a1a;
         }
-
-        .touch-btn.empty {
+        .touch-grid .dpad-btn.empty {
             background: transparent;
-            box-shadow: none;
             border: none;
+            box-shadow: none;
             cursor: default;
             pointer-events: none;
         }
-
-        .touch-btn svg {
-            width: 36px;
-            height: 36px;
+        .touch-grid .dpad-btn svg {
+            width: 30px;
+            height: 30px;
             fill: currentColor;
             pointer-events: none;
         }
-
-        /* Grid placement */
         .btn-up {
             grid-column: 2;
             grid-row: 1;
@@ -176,345 +321,620 @@
             grid-row: 3;
         }
 
-        /* ── Controls row (restart + hint) ── */
-        .controls-row {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-top: 16px;
-            gap: 12px;
-            flex-wrap: wrap;
-        }
-
-        .btn-restart {
+        /* ─── RESTART ─── */
+        .restart-btn {
             background: #e94560;
             border: none;
-            color: #f0f0f0;
-            font-size: 1rem;
-            font-weight: 600;
-            padding: 10px 28px;
+            color: #fff;
+            font-weight: 700;
+            padding: 10px 34px;
             border-radius: 40px;
+            font-size: 1rem;
             cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            box-shadow: 0 6px 0 #9e2a3f, 0 4px 12px rgba(0, 0, 0, 0.3);
-            letter-spacing: 0.5px;
-            flex: 1;
-            min-width: 120px;
-            text-align: center;
+            transition: 0.15s;
+            box-shadow: 0 5px 0 #9e2a3f;
             touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+            margin-top: 4px;
         }
-
-        .btn-restart:hover {
+        .restart-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #9e2a3f;
+        }
+        .restart-btn:hover {
             background: #ff5a7a;
         }
-        .btn-restart:active {
-            transform: translateY(4px);
-            box-shadow: 0 2px 0 #9e2a3f;
+
+        /* ─── BILLBOARD / LEADERBOARD ─── */
+        .billboard {
+            background: #14142a;
+            border-radius: 20px;
+            padding: 18px 20px 20px;
+            border: 1px solid #2a2a48;
+            max-height: 420px;
+            overflow-y: auto;
+        }
+        .billboard::-webkit-scrollbar {
+            width: 5px;
+        }
+        .billboard::-webkit-scrollbar-track {
+            background: #0e0e1e;
+            border-radius: 10px;
+        }
+        .billboard::-webkit-scrollbar-thumb {
+            background: #3a3a6a;
+            border-radius: 10px;
         }
 
-        .hint {
-            color: #7a8ba8;
-            font-size: 0.8rem;
-            background: #0f1f33;
-            padding: 6px 16px;
-            border-radius: 30px;
-            letter-spacing: 0.2px;
-            white-space: nowrap;
+        .billboard h3 {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #aab8d8;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .billboard h3 span {
+            color: #f5c842;
         }
 
-        .hint kbd {
-            background: #1e2f44;
-            padding: 2px 8px;
-            border-radius: 6px;
-            color: #c0d0e0;
+        .leader-entry {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: #1a1a34;
+            margin-bottom: 4px;
+            transition: 0.15s;
+        }
+        .leader-entry .rank {
             font-weight: 700;
-            margin: 0 1px;
+            color: #6a7a9a;
+            min-width: 28px;
+            font-size: 0.9rem;
         }
-
-        /* ── Swipe hint overlay (fades on first swipe) ── */
-        .swipe-hint {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: rgba(255, 255, 255, 0.12);
-            font-size: 2.8rem;
-            font-weight: 300;
-            letter-spacing: 2px;
-            pointer-events: none;
+        .leader-entry .rank.gold {
+            color: #f5c842;
+        }
+        .leader-entry .rank.silver {
+            color: #b0b8c8;
+        }
+        .leader-entry .rank.bronze {
+            color: #cd7f4a;
+        }
+        .leader-entry .lname {
+            flex: 1;
+            font-weight: 500;
+            color: #c8d0e8;
+        }
+        .leader-entry .lscore {
+            font-weight: 700;
+            color: #6bcb77;
+            font-size: 1.05rem;
+        }
+        .leader-entry .lbadge {
+            font-size: 1.2rem;
+        }
+        .leader-empty {
+            color: #5a6a8a;
             text-align: center;
-            line-height: 1.4;
-            transition: opacity 0.8s ease;
-            text-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-        }
-        .swipe-hint.hidden {
-            opacity: 0;
+            padding: 28px 0;
+            font-style: italic;
         }
 
-        /* ── Responsive ── */
-        @media (max-width: 520px) {
-            .game-wrapper {
-                padding: 14px 14px 20px;
-                border-radius: 20px;
-                margin: 8px;
+        /* ─── DATA TOOLS ─── */
+        .data-tools {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .data-tools button {
+            background: #1a1a3a;
+            border: 1px solid #3a3a5a;
+            color: #aab8d8;
+            padding: 6px 18px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+            touch-action: manipulation;
+        }
+        .data-tools button:hover {
+            background: #2a2a5a;
+            border-color: #5a5a8a;
+        }
+        .data-tools button:active {
+            transform: scale(0.96);
+        }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 600px) {
+            .app {
+                padding: 16px 14px 20px;
             }
-            .touch-controls {
-                grid-template-columns: 64px 64px 64px;
-                grid-template-rows: 64px 64px 64px;
-                gap: 5px;
+            .auth-box {
+                padding: 18px 16px;
             }
-            .touch-btn {
-                border-radius: 14px;
-                font-size: 1.8rem;
+            .touch-grid {
+                grid-template-columns: 56px 56px 56px;
+                grid-template-rows: 56px 56px 56px;
             }
-            .touch-btn svg {
-                width: 28px;
-                height: 28px;
+            .touch-grid .dpad-btn svg {
+                width: 24px;
+                height: 24px;
             }
-            .score-box,
-            .best-box {
+            .profile-bar {
+                padding: 6px 12px;
                 font-size: 0.85rem;
-                padding: 4px 12px;
             }
-            .score-box .value,
-            .best-box .value {
-                font-size: 1.1rem;
-                min-width: 1.6rem;
+            .profile-bar .user-info .name {
+                max-width: 100px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
-            .btn-restart {
-                font-size: 0.9rem;
-                padding: 8px 18px;
-                min-width: 80px;
+            .tab-btn {
+                font-size: 0.75rem;
+                padding: 8px 10px;
+                min-width: 60px;
             }
-            .hint {
-                font-size: 0.7rem;
-                padding: 4px 12px;
-                white-space: normal;
-            }
-            .controls-row {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 8px;
+            .billboard {
+                max-height: 280px;
             }
         }
-
-        @media (max-width: 400px) {
-            .touch-controls {
-                grid-template-columns: 52px 52px 52px;
-                grid-template-rows: 52px 52px 52px;
+        @media (max-width: 420px) {
+            .touch-grid {
+                grid-template-columns: 48px 48px 48px;
+                grid-template-rows: 48px 48px 48px;
                 gap: 4px;
             }
-            .touch-btn {
+            .touch-grid .dpad-btn svg {
+                width: 20px;
+                height: 20px;
+            }
+            .touch-grid .dpad-btn {
                 border-radius: 12px;
-                font-size: 1.4rem;
-            }
-            .touch-btn svg {
-                width: 22px;
-                height: 22px;
             }
         }
-
-        @media (pointer: coarse) {
-            /* Hide keyboard hint on touch devices */
-            .hint kbd {
-                display: none;
-            }
-            .hint::after {
-                content: 'Swipe canvas · tap buttons';
-                color: #7a8ba8;
-            }
-            .hint {
-                white-space: normal;
+        /* Show touch controls on small screens */
+        @media (min-width: 801px) {
+            .touch-grid {
+                display: none !important;
             }
         }
-
-        @media (pointer: fine) {
-            /* On desktop, hide touch controls by default */
-            .touch-controls {
-                display: none;
-            }
-            /* Show a small note */
-            .controls-row .hint kbd {
-                display: inline;
-            }
-            .controls-row .hint::after {
-                display: none;
-            }
-        }
-
-        /* If touch is supported but we want to show touch controls on small screens */
         @media (max-width: 800px) {
-            .touch-controls {
+            .touch-grid {
                 display: grid !important;
             }
         }
 
-        /* ── Prevent zoom on double-tap ── */
-        .game-wrapper,
-        canvas,
-        .touch-btn {
-            touch-action: manipulation;
+        /* ─── UTILITY ─── */
+        .hidden {
+            display: none !important;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .mt-8 {
+            margin-top: 8px;
+        }
+        .gap-8 {
+            gap: 8px;
+        }
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .w-full {
+            width: 100%;
         }
     </style>
 </head>
 <body>
 
-    <div class="game-wrapper">
-        <!-- Header: Score & Best -->
-        <div class="header">
-            <div class="score-box">
-                🍎 Score <span class="value" id="scoreDisplay">0</span>
+    <div class="app" id="app">
+        <!-- ─── TABS ─── -->
+        <div class="tabs" id="tabBar">
+            <button class="tab-btn active" data-tab="game">🎮 Game</button>
+            <button class="tab-btn" data-tab="billboard">🏆 Billboard</button>
+            <button class="tab-btn" data-tab="profile">👤 Profile</button>
+        </div>
+
+        <!-- ─── TAB: GAME ─── -->
+        <div class="tab-panel active" id="panel-game">
+            <!-- Auth / Profile bar -->
+            <div id="authContainer">
+                <!-- Will be replaced by JS -->
             </div>
-            <div class="best-box">
-                🏆 Best <span class="value" id="bestDisplay">0</span>
+
+            <div id="gameContainer" class="game-area hidden">
+                <div class="score-row">
+                    <div>🍎 Score <span id="gameScore">0</span></div>
+                    <div>🏆 Best <span class="best-score" id="gameBest">0</span></div>
+                </div>
+                <div class="canvas-wrap">
+                    <canvas id="gameCanvas" width="480" height="480"></canvas>
+                </div>
+                <div class="touch-grid" id="touchControls">
+                    <div class="dpad-btn btn-up" data-dir="up">
+                        <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h16z"/></svg>
+                    </div>
+                    <div class="dpad-btn btn-left" data-dir="left">
+                        <svg viewBox="0 0 24 24"><path d="M4 12l8-8v16z"/></svg>
+                    </div>
+                    <div class="dpad-btn btn-right" data-dir="right">
+                        <svg viewBox="0 0 24 24"><path d="M20 12l-8-8v16z"/></svg>
+                    </div>
+                    <div class="dpad-btn btn-down" data-dir="down">
+                        <svg viewBox="0 0 24 24"><path d="M12 20l-8-8h16z"/></svg>
+                    </div>
+                    <div class="dpad-btn empty"></div>
+                    <div class="dpad-btn empty"></div>
+                    <div class="dpad-btn empty"></div>
+                    <div class="dpad-btn empty"></div>
+                </div>
+                <button class="restart-btn" id="restartBtn">⟳ Restart</button>
+            </div>
+
+            <!-- Auth forms (shown when not logged in) -->
+            <div id="authForms">
+                <!-- Rendered by JS -->
             </div>
         </div>
 
-        <!-- Canvas with swipe hint -->
-        <div class="canvas-container">
-            <canvas id="gameCanvas" width="480" height="480"></canvas>
-            <div class="swipe-hint" id="swipeHint">↕ ↕<br />↔ ↔</div>
+        <!-- ─── TAB: BILLBOARD ─── -->
+        <div class="tab-panel" id="panel-billboard">
+            <div class="billboard" id="leaderboardContainer">
+                <h3>🏆 Global Leaderboard <span id="lbCount">0</span></h3>
+                <div id="leaderboardList">
+                    <div class="leader-empty">No users yet. Be the first!</div>
+                </div>
+                <div class="data-tools">
+                    <button id="exportDataBtn">📤 Export as .txt</button>
+                    <button id="importDataBtn">📥 Import .txt</button>
+                    <input type="file" id="importFileInput" accept=".txt" style="display:none" />
+                </div>
+            </div>
         </div>
 
-        <!-- Touch D-pad controls -->
-        <div class="touch-controls" id="touchControls">
-            <div class="touch-btn btn-up" data-dir="up">
-                <svg viewBox="0 0 24 24"><path d="M12 4l-8 8h16z"/></svg>
-            </div>
-            <div class="touch-btn btn-left" data-dir="left">
-                <svg viewBox="0 0 24 24"><path d="M4 12l8-8v16z"/></svg>
-            </div>
-            <div class="touch-btn btn-right" data-dir="right">
-                <svg viewBox="0 0 24 24"><path d="M20 12l-8-8v16z"/></svg>
-            </div>
-            <div class="touch-btn btn-down" data-dir="down">
-                <svg viewBox="0 0 24 24"><path d="M12 20l-8-8h16z"/></svg>
-            </div>
-            <!-- empty cells to keep grid -->
-            <div class="touch-btn empty"></div>
-            <div class="touch-btn empty"></div>
-            <div class="touch-btn empty"></div>
-            <div class="touch-btn empty"></div>
-        </div>
-
-        <!-- Controls row -->
-        <div class="controls-row">
-            <button class="btn-restart" id="restartBtn">⟳ Restart</button>
-            <div class="hint">
-                <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd>
-                <span style="display:none;">&nbsp;or&nbsp;</span>
+        <!-- ─── TAB: PROFILE ─── -->
+        <div class="tab-panel" id="panel-profile">
+            <div id="profileContainer">
+                <!-- Rendered by JS -->
             </div>
         </div>
     </div>
 
     <script>
+        // ═══════════════════════════════════════════════════════════════════
+        //  SNAKE GAME – full implementation with profiles & leaderboard
+        // ═══════════════════════════════════════════════════════════════════
+
         (function() {
             'use strict';
 
             // ─── DOM refs ────────────────────────────────────────────────
-            const canvas = document.getElementById('gameCanvas');
+            const $ = (s) => document.querySelector(s);
+            const $$ = (s) => document.querySelectorAll(s);
+
+            const canvas = $('#gameCanvas');
             const ctx = canvas.getContext('2d');
-            const scoreSpan = document.getElementById('scoreDisplay');
-            const bestSpan = document.getElementById('bestDisplay');
-            const restartBtn = document.getElementById('restartBtn');
-            const swipeHint = document.getElementById('swipeHint');
+            const gameScore = $('#gameScore');
+            const gameBest = $('#gameBest');
+            const restartBtn = $('#restartBtn');
+            const tabBar = $('#tabBar');
+            const panels = {
+                game: $('#panel-game'),
+                billboard: $('#panel-billboard'),
+                profile: $('#panel-profile')
+            };
+            const authContainer = $('#authContainer');
+            const authForms = $('#authForms');
+            const gameContainer = $('#gameContainer');
+            const leaderboardList = $('#leaderboardList');
+            const lbCount = $('#lbCount');
+            const profileContainer = $('#profileContainer');
+            const exportBtn = $('#exportDataBtn');
+            const importBtn = $('#importDataBtn');
+            const importFileInput = $('#importFileInput');
 
-            // ─── Constants ──────────────────────────────────────────────
-            const GRID_SIZE = 20;
-            const TILE_SIZE = canvas.width / GRID_SIZE;
-
+            // ─── CONSTANTS ──────────────────────────────────────────────
+            const GRID = 20;
+            const TILE = canvas.width / GRID;
             const DIR = {
                 UP: { dx: 0, dy: -1 },
                 DOWN: { dx: 0, dy: 1 },
                 LEFT: { dx: -1, dy: 0 },
                 RIGHT: { dx: 1, dy: 0 }
             };
+            const STORAGE_KEY = 'snakeLeaderboardData';
 
-            // ─── State ──────────────────────────────────────────────────
+            // ─── STATE ──────────────────────────────────────────────────
             let snake = [];
             let food = { x: 8, y: 10 };
             let direction = DIR.RIGHT;
             let nextDirection = DIR.RIGHT;
             let score = 0;
-            let best = 0;
             let gameOver = false;
             let win = false;
-            let gameLoopInterval = null;
             let gameRunning = false;
+            let loopInterval = null;
+            let animFrame = null;
 
-            // Touch / swipe state
-            let touchStartX = 0;
-            let touchStartY = 0;
-            let isSwiping = false;
-            let swipeHintHidden = false;
+            // Auth state
+            let currentUser = null; // { username, password, bestScore }
 
-            // ─── Load best from localStorage ────────────────────────────
-            function loadBest() {
+            // All users
+            let allUsers = [];
+
+            // ─── STORAGE ──────────────────────────────────────────────────
+            function loadData() {
                 try {
-                    const stored = localStorage.getItem('snakeBest');
-                    if (stored !== null) {
-                        best = parseInt(stored, 10) || 0;
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (raw) {
+                        const parsed = JSON.parse(raw);
+                        if (Array.isArray(parsed)) {
+                            allUsers = parsed;
+                            return;
+                        }
                     }
-                } catch (_) { /* ignore */ }
-                bestSpan.textContent = best;
+                } catch (_) {}
+                allUsers = [];
             }
 
-            function saveBest() {
+            function saveData() {
                 try {
-                    localStorage.setItem('snakeBest', String(best));
-                } catch (_) { /* ignore */ }
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(allUsers));
+                } catch (_) {}
             }
 
-            // ─── Helpers ────────────────────────────────────────────────
-            function randomInt(min, max) {
-                return Math.floor(Math.random() * (max - min + 1)) + min;
+            function findUser(username) {
+                return allUsers.find(u => u.username === username);
             }
 
-            function isOnSnake(x, y, includeHead = true) {
-                const start = includeHead ? 0 : 1;
-                for (let i = start; i < snake.length; i++) {
-                    if (snake[i].x === x && snake[i].y === y) return true;
+            function addUser(username, password) {
+                if (findUser(username)) return false;
+                allUsers.push({ username, password, bestScore: 0 });
+                saveData();
+                return true;
+            }
+
+            function updateUserBest(username, newBest) {
+                const user = findUser(username);
+                if (user) {
+                    if (newBest > user.bestScore) {
+                        user.bestScore = newBest;
+                        saveData();
+                        return true;
+                    }
                 }
                 return false;
             }
 
-            function generateFood() {
-                const totalCells = GRID_SIZE * GRID_SIZE;
-                if (snake.length >= totalCells) {
-                    win = true;
-                    gameOver = true;
-                    return false;
+            // ─── AUTH UI ──────────────────────────────────────────────────
+            function renderAuth() {
+                if (currentUser) {
+                    // Show profile bar
+                    const initial = currentUser.username.charAt(0).toUpperCase();
+                    authContainer.innerHTML = `
+                        <div class="profile-bar">
+                            <div class="user-info">
+                                <div class="avatar">${initial}</div>
+                                <span class="name">${escapeHtml(currentUser.username)}</span>
+                                <span class="best">🏆 ${currentUser.bestScore}</span>
+                            </div>
+                            <button class="logout-btn" id="logoutBtn">Logout</button>
+                        </div>
+                    `;
+                    document.getElementById('logoutBtn').addEventListener('click', () => {
+                        currentUser = null;
+                        renderAll();
+                    });
+                    authForms.classList.add('hidden');
+                    gameContainer.classList.remove('hidden');
+                    // Update game best
+                    gameBest.textContent = currentUser.bestScore;
+                    return;
                 }
 
-                const freeCells = [];
-                for (let y = 0; y < GRID_SIZE; y++) {
-                    for (let x = 0; x < GRID_SIZE; x++) {
-                        if (!isOnSnake(x, y, true)) {
-                            freeCells.push({ x, y });
-                        }
-                    }
+                // Not logged in – show auth forms
+                authContainer.innerHTML = '';
+                authForms.classList.remove('hidden');
+                gameContainer.classList.add('hidden');
+
+                authForms.innerHTML = `
+                    <div class="auth-box" id="loginBox">
+                        <h3>🔐 Login</h3>
+                        <label>Username</label>
+                        <input type="text" id="loginUser" placeholder="Enter username" />
+                        <label>Password</label>
+                        <input type="password" id="loginPass" placeholder="Enter password" />
+                        <div class="auth-error" id="loginError"></div>
+                        <button class="btn-primary" id="loginBtn">Sign In</button>
+                        <div class="auth-switch">Don't have an account? <span id="switchToRegister">Register</span></div>
+                    </div>
+                    <div class="auth-box hidden" id="registerBox">
+                        <h3>📝 Register</h3>
+                        <label>Username</label>
+                        <input type="text" id="regUser" placeholder="Choose username" />
+                        <label>Password</label>
+                        <input type="password" id="regPass" placeholder="Choose password" />
+                        <div class="auth-error" id="regError"></div>
+                        <button class="btn-primary" id="regBtn">Create Account</button>
+                        <div class="auth-switch">Already have an account? <span id="switchToLogin">Login</span></div>
+                    </div>
+                `;
+
+                // Login
+                document.getElementById('loginBtn').addEventListener('click', () => doLogin());
+                document.getElementById('loginUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+                document.getElementById('loginPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin(); });
+
+                // Register
+                document.getElementById('regBtn').addEventListener('click', () => doRegister());
+                document.getElementById('regUser').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+                document.getElementById('regPass').addEventListener('keydown', (e) => { if (e.key === 'Enter') doRegister(); });
+
+                // Switch
+                document.getElementById('switchToRegister').addEventListener('click', () => {
+                    document.getElementById('loginBox').classList.add('hidden');
+                    document.getElementById('registerBox').classList.remove('hidden');
+                });
+                document.getElementById('switchToLogin').addEventListener('click', () => {
+                    document.getElementById('registerBox').classList.add('hidden');
+                    document.getElementById('loginBox').classList.remove('hidden');
+                });
+
+                function doLogin() {
+                    const username = document.getElementById('loginUser').value.trim();
+                    const password = document.getElementById('loginPass').value.trim();
+                    const err = document.getElementById('loginError');
+                    if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
+                    const user = findUser(username);
+                    if (!user) { err.textContent = 'User not found.'; return; }
+                    if (user.password !== password) { err.textContent = 'Incorrect password.'; return; }
+                    currentUser = { ...user };
+                    err.textContent = '';
+                    renderAll();
                 }
 
-                if (freeCells.length === 0) {
-                    win = true;
-                    gameOver = true;
-                    return false;
+                function doRegister() {
+                    const username = document.getElementById('regUser').value.trim();
+                    const password = document.getElementById('regPass').value.trim();
+                    const err = document.getElementById('regError');
+                    if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
+                    if (username.length < 2) { err.textContent = 'Username must be at least 2 characters.'; return; }
+                    if (password.length < 3) { err.textContent = 'Password must be at least 3 characters.'; return; }
+                    if (findUser(username)) { err.textContent = 'Username already taken.'; return; }
+                    addUser(username, password);
+                    currentUser = { username, password, bestScore: 0 };
+                    err.textContent = '';
+                    renderAll();
                 }
-
-                const idx = Math.floor(Math.random() * freeCells.length);
-                food = freeCells[idx];
-                return true;
             }
 
-            // ─── Reset game ─────────────────────────────────────────────
-            function resetGame() {
-                if (gameLoopInterval) {
-                    clearInterval(gameLoopInterval);
-                    gameLoopInterval = null;
-                }
+            function escapeHtml(str) {
+                const div = document.createElement('div');
+                div.textContent = str;
+                return div.innerHTML;
+            }
 
+            // ─── RENDER ALL ──────────────────────────────────────────────
+            function renderAll() {
+                loadData();
+                renderAuth();
+                renderLeaderboard();
+                renderProfile();
+                if (currentUser) {
+                    gameBest.textContent = currentUser.bestScore;
+                    gameScore.textContent = score;
+                }
+            }
+
+            // ─── LEADERBOARD ─────────────────────────────────────────────
+            function renderLeaderboard() {
+                const sorted = [...allUsers].sort((a, b) => b.bestScore - a.bestScore);
+                lbCount.textContent = sorted.length;
+                if (sorted.length === 0) {
+                    leaderboardList.innerHTML = `<div class="leader-empty">No users yet. Be the first!</div>`;
+                    return;
+                }
+                let html = '';
+                sorted.forEach((u, i) => {
+                    const rank = i + 1;
+                    let rankClass = 'rank';
+                    let badge = '';
+                    if (rank === 1) { rankClass += ' gold';
+                        badge = '👑'; } else if (rank === 2) { rankClass += ' silver';
+                        badge = '🥈'; } else if (rank === 3) { rankClass += ' bronze';
+                        badge = '🥉'; }
+                    const isMe = currentUser && u.username === currentUser.username;
+                    html += `
+                        <div class="leader-entry" style="${isMe ? 'background:#2a2a5a;border:1px solid #5a6aae;' : ''}">
+                            <span class="${rankClass}">#${rank}</span>
+                            <span class="lbadge">${badge}</span>
+                            <span class="lname">${escapeHtml(u.username)} ${isMe ? '⭐' : ''}</span>
+                            <span class="lscore">${u.bestScore}</span>
+                        </div>
+                    `;
+                });
+                leaderboardList.innerHTML = html;
+            }
+
+            // ─── PROFILE TAB ─────────────────────────────────────────────
+            function renderProfile() {
+                if (!currentUser) {
+                    profileContainer.innerHTML = `
+                        <div class="auth-box" style="max-width:100%;text-align:center;padding:40px 20px;">
+                            <h3>👤 Profile</h3>
+                            <p style="color:#7a8aaa;margin-top:8px;">Please log in to view your profile.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                profileContainer.innerHTML = `
+                    <div class="auth-box" style="max-width:100%;">
+                        <h3>👤 ${escapeHtml(currentUser.username)}</h3>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a48;">
+                            <span style="color:#8a9ab8;">🏆 Best Score</span>
+                            <span style="font-weight:700;color:#f5c842;font-size:1.4rem;">${currentUser.bestScore}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #2a2a48;">
+                            <span style="color:#8a9ab8;">📊 Games Played</span>
+                            <span style="font-weight:500;">—</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                            <span style="color:#8a9ab8;">🔑 Password</span>
+                            <span style="font-weight:400;color:#6a7a9a;">••••••••</span>
+                        </div>
+                        <div style="margin-top:16px;text-align:center;color:#6a7a9a;font-size:0.85rem;">
+                            Data stored locally in your browser.
+                        </div>
+                    </div>
+                `;
+            }
+
+            // ─── EXPORT / IMPORT ─────────────────────────────────────────
+            function exportData() {
+                loadData();
+                const dataStr = JSON.stringify(allUsers, null, 2);
+                const blob = new Blob([dataStr], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'snake_leaderboard_data.txt';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            function importData(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        if (Array.isArray(data)) {
+                            allUsers = data;
+                            saveData();
+                            renderAll();
+                            alert('✅ Data imported successfully!');
+                        } else {
+                            alert('❌ Invalid file format.');
+                        }
+                    } catch (_) {
+                        alert('❌ Failed to parse file. Make sure it\'s a valid .txt export.');
+                    }
+                };
+                reader.readAsText(file);
+            }
+
+            // ─── SNAKE GAME ──────────────────────────────────────────────
+            function resetGame() {
+                if (loopInterval) { clearInterval(loopInterval);
+                    loopInterval = null; }
                 snake = [
                     { x: 9, y: 10 },
                     { x: 8, y: 10 },
@@ -526,176 +946,162 @@
                 gameOver = false;
                 win = false;
                 gameRunning = true;
-                scoreSpan.textContent = '0';
-
-                if (!generateFood()) {
-                    food = { x: 5, y: 5 };
+                gameScore.textContent = '0';
+                if (currentUser) {
+                    gameBest.textContent = currentUser.bestScore;
                 }
-
+                generateFood();
                 draw();
                 startLoop();
             }
 
-            // ─── Game loop ──────────────────────────────────────────────
+            function generateFood() {
+                const total = GRID * GRID;
+                if (snake.length >= total) { win = true;
+                    gameOver = true;
+                    gameRunning = false; return false; }
+                const free = [];
+                for (let y = 0; y < GRID; y++) {
+                    for (let x = 0; x < GRID; x++) {
+                        if (!isOnSnake(x, y)) free.push({ x, y });
+                    }
+                }
+                if (free.length === 0) { win = true;
+                    gameOver = true;
+                    gameRunning = false; return false; }
+                const idx = Math.floor(Math.random() * free.length);
+                food = free[idx];
+                return true;
+            }
+
+            function isOnSnake(x, y, includeHead = true) {
+                const start = includeHead ? 0 : 1;
+                for (let i = start; i < snake.length; i++) {
+                    if (snake[i].x === x && snake[i].y === y) return true;
+                }
+                return false;
+            }
+
             function step() {
                 if (!gameRunning || gameOver) return;
-
                 direction = nextDirection;
-
                 const head = snake[0];
-                const newHead = {
-                    x: head.x + direction.dx,
-                    y: head.y + direction.dy
-                };
-
-                if (newHead.x < 0 || newHead.x >= GRID_SIZE ||
-                    newHead.y < 0 || newHead.y >= GRID_SIZE) {
-                    gameOver = true;
-                    gameRunning = false;
-                    if (gameLoopInterval) {
-                        clearInterval(gameLoopInterval);
-                        gameLoopInterval = null;
-                    }
-                    draw();
+                const newHead = { x: head.x + direction.dx, y: head.y + direction.dy };
+                if (newHead.x < 0 || newHead.x >= GRID || newHead.y < 0 || newHead.y >= GRID) {
+                    endGame();
                     return;
                 }
-
                 const isEating = (newHead.x === food.x && newHead.y === food.y);
-
                 let newSnake = [newHead, ...snake];
-
-                if (!isEating) {
-                    newSnake.pop();
-                }
-
-                const headCollision = newSnake.slice(1).some(seg => seg.x === newHead.x && seg.y === newHead.y);
-                if (headCollision) {
-                    gameOver = true;
-                    gameRunning = false;
-                    if (gameLoopInterval) {
-                        clearInterval(gameLoopInterval);
-                        gameLoopInterval = null;
-                    }
-                    draw();
+                if (!isEating) newSnake.pop();
+                if (newSnake.slice(1).some(s => s.x === newHead.x && s.y === newHead.y)) {
+                    endGame();
                     return;
                 }
-
                 snake = newSnake;
-
                 if (isEating) {
                     score++;
-                    scoreSpan.textContent = score;
-
-                    if (score > best) {
-                        best = score;
-                        bestSpan.textContent = best;
-                        saveBest();
+                    gameScore.textContent = score;
+                    if (currentUser && score > currentUser.bestScore) {
+                        currentUser.bestScore = score;
+                        updateUserBest(currentUser.username, score);
+                        gameBest.textContent = score;
+                        renderLeaderboard();
+                        renderProfile();
                     }
-
-                    const success = generateFood();
-                    if (!success) {
-                        gameOver = true;
-                        gameRunning = false;
-                        if (gameLoopInterval) {
-                            clearInterval(gameLoopInterval);
-                            gameLoopInterval = null;
-                        }
-                        draw();
+                    if (!generateFood()) {
+                        endGame();
                         return;
                     }
                 }
-
                 draw();
             }
 
-            // ─── Start loop ─────────────────────────────────────────────
-            function startLoop() {
-                if (gameLoopInterval) {
-                    clearInterval(gameLoopInterval);
-                    gameLoopInterval = null;
+            function endGame() {
+                gameOver = true;
+                gameRunning = false;
+                if (loopInterval) { clearInterval(loopInterval);
+                    loopInterval = null; }
+                draw();
+                if (win) {
+                    // already handled
                 }
-                gameLoopInterval = setInterval(step, 140);
             }
 
-            // ─── Drawing ────────────────────────────────────────────────
+            function startLoop() {
+                if (loopInterval) clearInterval(loopInterval);
+                loopInterval = setInterval(step, 140);
+            }
+
+            function setDirection(newDir) {
+                if (!gameRunning || gameOver) return;
+                if (direction.dx === -newDir.dx && direction.dy === -newDir.dy) return;
+                nextDirection = newDir;
+            }
+
+            // ─── DRAW ─────────────────────────────────────────────────────
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
                 // Grid
                 ctx.strokeStyle = '#1c2f44';
                 ctx.lineWidth = 0.6;
-                for (let i = 0; i <= GRID_SIZE; i++) {
+                for (let i = 0; i <= GRID; i++) {
                     ctx.beginPath();
-                    ctx.moveTo(i * TILE_SIZE, 0);
-                    ctx.lineTo(i * TILE_SIZE, canvas.height);
+                    ctx.moveTo(i * TILE, 0);
+                    ctx.lineTo(i * TILE, canvas.height);
                     ctx.stroke();
                     ctx.beginPath();
-                    ctx.moveTo(0, i * TILE_SIZE);
-                    ctx.lineTo(canvas.width, i * TILE_SIZE);
+                    ctx.moveTo(0, i * TILE);
+                    ctx.lineTo(canvas.width, i * TILE);
                     ctx.stroke();
                 }
-
                 // Snake
-                if (snake.length > 0) {
+                if (snake.length) {
                     for (let i = 1; i < snake.length; i++) {
-                        const seg = snake[i];
-                        const x = seg.x * TILE_SIZE;
-                        const y = seg.y * TILE_SIZE;
+                        const s = snake[i];
+                        const x = s.x * TILE,
+                            y = s.y * TILE;
                         const pad = i === snake.length - 1 ? 3 : 2;
-                        const radius = 5;
-
                         ctx.fillStyle = (i % 2 === 0) ? '#4ade80' : '#22c55e';
-                        ctx.shadowColor = 'rgba(74, 222, 128, 0.25)';
+                        ctx.shadowColor = 'rgba(74,222,128,0.2)';
                         ctx.shadowBlur = 8;
-                        roundRect(ctx, x + pad, y + pad, TILE_SIZE - pad * 2, TILE_SIZE - pad * 2, radius);
+                        roundRect(ctx, x + pad, y + pad, TILE - pad * 2, TILE - pad * 2, 5);
                         ctx.fill();
                     }
-
-                    const head = snake[0];
-                    const hx = head.x * TILE_SIZE;
-                    const hy = head.y * TILE_SIZE;
-                    ctx.shadowColor = 'rgba(251, 191, 36, 0.5)';
+                    const h = snake[0];
+                    const hx = h.x * TILE,
+                        hy = h.y * TILE;
+                    ctx.shadowColor = 'rgba(251,191,36,0.5)';
                     ctx.shadowBlur = 14;
                     ctx.fillStyle = '#fbbf24';
-                    roundRect(ctx, hx + 1.5, hy + 1.5, TILE_SIZE - 3, TILE_SIZE - 3, 7);
+                    roundRect(ctx, hx + 1.5, hy + 1.5, TILE - 3, TILE - 3, 7);
                     ctx.fill();
-
-                    // Eyes
                     ctx.shadowBlur = 0;
+                    // Eyes
                     ctx.fillStyle = '#0d1b2a';
+                    const cx = hx + TILE / 2,
+                        cy = hy + TILE / 2;
                     let ex1, ey1, ex2, ey2;
                     const d = direction;
-                    const cx = hx + TILE_SIZE / 2;
-                    const cy = hy + TILE_SIZE / 2;
-
-                    if (d === DIR.RIGHT) {
-                        ex1 = cx + 3;
+                    if (d === DIR.RIGHT) { ex1 = cx + 3;
                         ey1 = cy - 5;
                         ex2 = cx + 3;
-                        ey2 = cy + 5;
-                    } else if (d === DIR.LEFT) {
-                        ex1 = cx - 3;
+                        ey2 = cy + 5; } else if (d === DIR.LEFT) { ex1 = cx - 3;
                         ey1 = cy - 5;
                         ex2 = cx - 3;
-                        ey2 = cy + 5;
-                    } else if (d === DIR.UP) {
-                        ex1 = cx - 5;
+                        ey2 = cy + 5; } else if (d === DIR.UP) { ex1 = cx - 5;
                         ey1 = cy - 3;
                         ex2 = cx + 5;
-                        ey2 = cy - 3;
-                    } else {
-                        ex1 = cx - 5;
+                        ey2 = cy - 3; } else { ex1 = cx - 5;
                         ey1 = cy + 3;
                         ex2 = cx + 5;
-                        ey2 = cy + 3;
-                    }
+                        ey2 = cy + 3; }
                     ctx.beginPath();
                     ctx.arc(ex1, ey1, 3.5, 0, 2 * Math.PI);
                     ctx.fill();
                     ctx.beginPath();
                     ctx.arc(ex2, ey2, 3.5, 0, 2 * Math.PI);
                     ctx.fill();
-
                     ctx.fillStyle = '#f0f9ff';
                     ctx.beginPath();
                     ctx.arc(ex1 + 1.2, ey1 - 1.2, 1.2, 0, 2 * Math.PI);
@@ -703,38 +1109,32 @@
                     ctx.beginPath();
                     ctx.arc(ex2 + 1.2, ey2 - 1.2, 1.2, 0, 2 * Math.PI);
                     ctx.fill();
-
                     ctx.shadowBlur = 0;
                 }
-
                 // Food
                 if (food && !win) {
-                    const fx = food.x * TILE_SIZE + TILE_SIZE / 2;
-                    const fy = food.y * TILE_SIZE + TILE_SIZE / 2;
+                    const fx = food.x * TILE + TILE / 2,
+                        fy = food.y * TILE + TILE / 2;
                     const pulse = 1 + 0.08 * Math.sin(Date.now() / 200);
-
-                    const grad = ctx.createRadialGradient(fx, fy, 2, fx, fy, TILE_SIZE * 0.7);
-                    grad.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
-                    grad.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                    const grad = ctx.createRadialGradient(fx, fy, 2, fx, fy, TILE * 0.7);
+                    grad.addColorStop(0, 'rgba(239,68,68,0.35)');
+                    grad.addColorStop(1, 'rgba(239,68,68,0)');
                     ctx.fillStyle = grad;
                     ctx.beginPath();
-                    ctx.arc(fx, fy, TILE_SIZE * 0.7, 0, 2 * Math.PI);
+                    ctx.arc(fx, fy, TILE * 0.7, 0, 2 * Math.PI);
                     ctx.fill();
-
-                    const rad = (TILE_SIZE / 2 - 2) * pulse;
-                    ctx.shadowColor = 'rgba(239, 68, 68, 0.6)';
+                    const rad = (TILE / 2 - 2) * pulse;
+                    ctx.shadowColor = 'rgba(239,68,68,0.6)';
                     ctx.shadowBlur = 20;
                     ctx.fillStyle = '#ef4444';
                     ctx.beginPath();
                     ctx.arc(fx, fy, rad, 0, 2 * Math.PI);
                     ctx.fill();
-
                     ctx.shadowBlur = 0;
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
                     ctx.beginPath();
                     ctx.arc(fx - 3, fy - 4, 4, 0, 2 * Math.PI);
                     ctx.fill();
-
                     ctx.strokeStyle = '#4a7c3f';
                     ctx.lineWidth = 2;
                     ctx.beginPath();
@@ -747,34 +1147,31 @@
                     ctx.fill();
                     ctx.shadowBlur = 0;
                 }
-
-                // Game Over overlay
+                // Overlay
                 if (gameOver) {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+                    ctx.fillStyle = 'rgba(0,0,0,0.65)';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
                     ctx.textAlign = 'center';
                     ctx.textBaseline = 'middle';
-
                     if (win) {
                         ctx.fillStyle = '#fbbf24';
-                        ctx.font = 'bold 44px "Segoe UI", sans-serif';
-                        ctx.shadowColor = 'rgba(251, 191, 36, 0.4)';
+                        ctx.font = 'bold 44px "Segoe UI",sans-serif';
+                        ctx.shadowColor = 'rgba(251,191,36,0.4)';
                         ctx.shadowBlur = 30;
                         ctx.fillText('🏆 YOU WIN!', canvas.width / 2, canvas.height / 2 - 30);
                         ctx.shadowBlur = 0;
                         ctx.fillStyle = '#e0e8f0';
-                        ctx.font = '20px "Segoe UI", sans-serif';
+                        ctx.font = '20px "Segoe UI",sans-serif';
                         ctx.fillText('Perfect board!', canvas.width / 2, canvas.height / 2 + 40);
                     } else {
                         ctx.fillStyle = '#f87171';
-                        ctx.font = 'bold 44px "Segoe UI", sans-serif';
-                        ctx.shadowColor = 'rgba(248, 113, 113, 0.3)';
+                        ctx.font = 'bold 44px "Segoe UI",sans-serif';
+                        ctx.shadowColor = 'rgba(248,113,113,0.3)';
                         ctx.shadowBlur = 30;
                         ctx.fillText('💀 GAME OVER', canvas.width / 2, canvas.height / 2 - 30);
                         ctx.shadowBlur = 0;
                         ctx.fillStyle = '#c0c8d8';
-                        ctx.font = '18px "Segoe UI", sans-serif';
+                        ctx.font = '18px "Segoe UI",sans-serif';
                         ctx.fillText('Tap "Restart" to try again', canvas.width / 2, canvas.height / 2 + 40);
                     }
                     ctx.shadowBlur = 0;
@@ -795,149 +1192,143 @@
                 ctx.closePath();
             }
 
-            // ─── Direction change ──────────────────────────────────────
-            function setDirection(newDir) {
-                if (!gameRunning || gameOver) return;
-                if (direction.dx === -newDir.dx && direction.dy === -newDir.dy) {
-                    return;
-                }
-                nextDirection = newDir;
+            // ─── ANIMATION LOOP ──────────────────────────────────────────
+            function animLoop() {
+                if (!gameOver) draw();
+                animFrame = requestAnimationFrame(animLoop);
             }
 
-            // ─── Input: Keyboard ────────────────────────────────────────
-            function handleKey(e) {
+            // ─── KEYBOARD ────────────────────────────────────────────────
+            function onKey(e) {
                 const key = e.key;
-                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(key)) {
-                    e.preventDefault();
-                }
-
-                let newDir = null;
-                if (key === 'ArrowUp' || key === 'w' || key === 'W') newDir = DIR.UP;
-                else if (key === 'ArrowDown' || key === 's' || key === 'S') newDir = DIR.DOWN;
-                else if (key === 'ArrowLeft' || key === 'a' || key === 'A') newDir = DIR.LEFT;
-                else if (key === 'ArrowRight' || key === 'd' || key === 'D') newDir = DIR.RIGHT;
-                if (newDir) setDirection(newDir);
+                if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) e.preventDefault();
+                let nd = null;
+                if (key === 'ArrowUp' || key === 'w' || key === 'W') nd = DIR.UP;
+                else if (key === 'ArrowDown' || key === 's' || key === 'S') nd = DIR.DOWN;
+                else if (key === 'ArrowLeft' || key === 'a' || key === 'A') nd = DIR.LEFT;
+                else if (key === 'ArrowRight' || key === 'd' || key === 'D') nd = DIR.RIGHT;
+                if (nd) setDirection(nd);
             }
 
-            // ─── Touch: Swipe on canvas ────────────────────────────────
-            function handleTouchStart(e) {
-                const touch = e.touches[0];
-                if (!touch) return;
-                const rect = canvas.getBoundingClientRect();
-                touchStartX = touch.clientX - rect.left;
-                touchStartY = touch.clientY - rect.top;
-                isSwiping = true;
-
-                // Hide swipe hint on first touch
-                if (!swipeHintHidden) {
-                    swipeHintHidden = true;
-                    swipeHint.classList.add('hidden');
-                }
-            }
-
-            function handleTouchMove(e) {
-                if (!isSwiping || !gameRunning || gameOver) return;
-                e.preventDefault();
-
-                const touch = e.touches[0];
-                if (!touch) return;
-                const rect = canvas.getBoundingClientRect();
-                const currentX = touch.clientX - rect.left;
-                const currentY = touch.clientY - rect.top;
-
-                const dx = currentX - touchStartX;
-                const dy = currentY - touchStartY;
-
-                const minSwipe = 18;
-                if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
-
-                let newDir = null;
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    newDir = dx > 0 ? DIR.RIGHT : DIR.LEFT;
-                } else {
-                    newDir = dy > 0 ? DIR.DOWN : DIR.UP;
-                }
-
-                if (newDir) {
-                    setDirection(newDir);
-                    // Reset start point to avoid repeated triggers from same swipe
-                    touchStartX = currentX;
-                    touchStartY = currentY;
-                }
-            }
-
-            function handleTouchEnd(e) {
-                isSwiping = false;
-            }
-
-            // ─── Touch: D-pad buttons ──────────────────────────────────
+            // ─── TOUCH CONTROLS ──────────────────────────────────────────
             function setupDpad() {
-                const btns = document.querySelectorAll('.touch-btn[data-dir]');
+                const btns = document.querySelectorAll('.dpad-btn[data-dir]');
                 btns.forEach(btn => {
                     const dir = btn.dataset.dir;
                     const handler = (e) => {
                         e.preventDefault();
-                        let newDir = null;
-                        if (dir === 'up') newDir = DIR.UP;
-                        else if (dir === 'down') newDir = DIR.DOWN;
-                        else if (dir === 'left') newDir = DIR.LEFT;
-                        else if (dir === 'right') newDir = DIR.RIGHT;
-                        if (newDir) setDirection(newDir);
+                        let nd = null;
+                        if (dir === 'up') nd = DIR.UP;
+                        else if (dir === 'down') nd = DIR.DOWN;
+                        else if (dir === 'left') nd = DIR.LEFT;
+                        else if (dir === 'right') nd = DIR.RIGHT;
+                        if (nd) setDirection(nd);
                     };
                     btn.addEventListener('touchstart', handler, { passive: false });
                     btn.addEventListener('mousedown', handler);
                 });
             }
 
-            // ─── Animation loop for food pulse ──────────────────────────
-            let animFrameId = null;
+            // ─── SWIPE ON CANVAS ─────────────────────────────────────────
+            let swipeStartX = 0,
+                swipeStartY = 0,
+                isSwiping = false;
 
-            function animationLoop() {
-                if (!gameOver) {
-                    draw();
-                }
-                animFrameId = requestAnimationFrame(animationLoop);
+            function onTouchStart(e) {
+                const t = e.touches[0];
+                if (!t) return;
+                const rect = canvas.getBoundingClientRect();
+                swipeStartX = t.clientX - rect.left;
+                swipeStartY = t.clientY - rect.top;
+                isSwiping = true;
             }
 
-            // ─── Init ────────────────────────────────────────────────────
+            function onTouchMove(e) {
+                if (!isSwiping || !gameRunning || gameOver) return;
+                e.preventDefault();
+                const t = e.touches[0];
+                if (!t) return;
+                const rect = canvas.getBoundingClientRect();
+                const cx = t.clientX - rect.left,
+                    cy = t.clientY - rect.top;
+                const dx = cx - swipeStartX,
+                    dy = cy - swipeStartY;
+                const minSwipe = 16;
+                if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return;
+                let nd = null;
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    nd = dx > 0 ? DIR.RIGHT : DIR.LEFT;
+                } else {
+                    nd = dy > 0 ? DIR.DOWN : DIR.UP;
+                }
+                if (nd) { setDirection(nd);
+                    swipeStartX = cx;
+                    swipeStartY = cy; }
+            }
+
+            function onTouchEnd() { isSwiping = false; }
+
+            // ─── TABS ─────────────────────────────────────────────────────
+            function setupTabs() {
+                tabBar.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.tab-btn');
+                    if (!btn) return;
+                    const tab = btn.dataset.tab;
+                    $$('.tab-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    Object.keys(panels).forEach(key => {
+                        panels[key].classList.toggle('active', key === tab);
+                    });
+                });
+            }
+
+            // ─── INIT ─────────────────────────────────────────────────────
             function init() {
-                loadBest();
+                loadData();
+                renderAll();
+
+                // Game
                 resetGame();
 
-                window.addEventListener('keydown', handleKey);
+                // Events
+                window.addEventListener('keydown', onKey);
+                restartBtn.addEventListener('click', () => resetGame());
+                restartBtn.addEventListener('touchstart', (e) => { e.preventDefault();
+                    resetGame(); }, { passive: false });
 
-                // Canvas touch events for swipe
-                canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
-                canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-                canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
-                canvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+                // Canvas touch swipe
+                canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+                canvas.addEventListener('touchmove', onTouchMove, { passive: false });
+                canvas.addEventListener('touchend', onTouchEnd, { passive: true });
+                canvas.addEventListener('touchcancel', onTouchEnd, { passive: true });
 
-                // D-pad
                 setupDpad();
+                setupTabs();
 
-                // Restart button
-                restartBtn.addEventListener('click', () => {
-                    resetGame();
-                    // Show swipe hint again after restart? Only if not hidden permanently
-                    // We keep it hidden once dismissed.
-                });
-                restartBtn.addEventListener('touchstart', (e) => {
-                    e.preventDefault();
-                    resetGame();
-                }, { passive: false });
-
-                // Hide swipe hint on any canvas interaction
-                canvas.addEventListener('click', () => {
-                    if (!swipeHintHidden) {
-                        swipeHintHidden = true;
-                        swipeHint.classList.add('hidden');
+                // Export / Import
+                exportBtn.addEventListener('click', exportData);
+                importBtn.addEventListener('click', () => importFileInput.click());
+                importFileInput.addEventListener('change', (e) => {
+                    if (e.target.files.length) {
+                        importData(e.target.files[0]);
+                        e.target.value = '';
                     }
                 });
 
-                animationLoop();
+                // Animation
+                if (animFrame) cancelAnimationFrame(animFrame);
+                animLoop();
+
+                // Re-render leaderboard on tab switch
+                document.querySelector('[data-tab="billboard"]').addEventListener('click', () => {
+                    renderLeaderboard();
+                });
+                document.querySelector('[data-tab="profile"]').addEventListener('click', () => {
+                    renderProfile();
+                });
             }
 
-            // ─── Go ──────────────────────────────────────────────────────
+            // ─── START ───────────────────────────────────────────────────
             init();
 
         })();
