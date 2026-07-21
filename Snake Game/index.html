@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>🐍 Snake · Global Leaderboard</title>
 
-    <!-- Firebase SDK (v9 compat – use modular via CDN) -->
+    <!-- Firebase SDK (v9 compat) -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js">
     </script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js">
@@ -170,6 +170,12 @@
             margin-top: 8px;
             text-align: center;
             min-height: 20px;
+        }
+        .auth-success {
+            color: #6bcb77;
+            font-size: 0.85rem;
+            margin-top: 8px;
+            text-align: center;
         }
 
         /* ─── PROFILE BAR ─── */
@@ -430,7 +436,7 @@
             font-style: italic;
         }
 
-        /* ─── DATA TOOLS (kept for backup, but now using Firebase) ─── */
+        /* ─── DATA TOOLS (backup) ─── */
         .data-tools {
             display: flex;
             gap: 10px;
@@ -518,7 +524,6 @@
             }
         }
 
-        /* ─── UTILITY ─── */
         .hidden {
             display: none !important;
         }
@@ -527,17 +532,6 @@
         }
         .mt-8 {
             margin-top: 8px;
-        }
-        .gap-8 {
-            gap: 8px;
-        }
-        .flex-center {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .w-full {
-            width: 100%;
         }
         .loading-spinner {
             display: inline-block;
@@ -548,6 +542,7 @@
             border-top-color: #6a8acf;
             animation: spin 0.8s linear infinite;
             margin-right: 8px;
+            vertical-align: middle;
         }
         @keyframes spin {
             to {
@@ -568,7 +563,6 @@
 
         <!-- ─── TAB: GAME ─── -->
         <div class="tab-panel active" id="panel-game">
-            <!-- Auth / Profile bar -->
             <div id="authContainer"></div>
 
             <div id="gameContainer" class="game-area hidden">
@@ -600,7 +594,6 @@
                 <button class="restart-btn" id="restartBtn">⟳ Restart</button>
             </div>
 
-            <!-- Auth forms (shown when not logged in) -->
             <div id="authForms"></div>
         </div>
 
@@ -693,60 +686,79 @@
         // Auth state
         let currentUser = null; // { username, password, bestScore }
 
-        // ─── FIREBASE HELPERS ────────────────────────────────────────────
+        // ─── FIREBASE HELPERS (async/await) ──────────────────────────────
 
-        // Read all users from Firebase
-        function fetchAllUsers(callback) {
-            db.ref('users').once('value').then(snapshot => {
+        // Get all users
+        async function fetchAllUsers() {
+            try {
+                const snapshot = await db.ref('users').once('value');
                 const data = snapshot.val();
                 if (data) {
-                    const users = Object.keys(data).map(key => ({
+                    return Object.keys(data).map(key => ({
                         username: key,
                         password: data[key].password || '',
                         bestScore: data[key].bestScore || 0
                     }));
-                    callback(users);
-                } else {
-                    callback([]);
                 }
-            }).catch(err => {
+                return [];
+            } catch (err) {
                 console.error('Firebase read error:', err);
-                callback([]);
-            });
-        }
-
-        // Write a user to Firebase
-        function writeUser(username, password, bestScore) {
-            return db.ref('users/' + username).set({
-                password: password,
-                bestScore: bestScore || 0
-            });
-        }
-
-        // Update best score for a user
-        function updateUserBest(username, newBest) {
-            return db.ref('users/' + username + '/bestScore').set(newBest);
+                return [];
+            }
         }
 
         // Check if user exists
-        function userExists(username, callback) {
-            db.ref('users/' + username).once('value').then(snapshot => {
-                callback(snapshot.exists());
-            }).catch(() => callback(false));
+        async function userExists(username) {
+            try {
+                const snapshot = await db.ref('users/' + username).once('value');
+                return snapshot.exists();
+            } catch (err) {
+                console.error('Firebase check error:', err);
+                return false;
+            }
         }
 
         // Get user data
-        function getUserData(username, callback) {
-            db.ref('users/' + username).once('value').then(snapshot => {
+        async function getUserData(username) {
+            try {
+                const snapshot = await db.ref('users/' + username).once('value');
                 if (snapshot.exists()) {
-                    callback(snapshot.val());
-                } else {
-                    callback(null);
+                    return snapshot.val();
                 }
-            }).catch(() => callback(null));
+                return null;
+            } catch (err) {
+                console.error('Firebase get error:', err);
+                return null;
+            }
+        }
+
+        // Write user
+        async function writeUser(username, password, bestScore) {
+            try {
+                await db.ref('users/' + username).set({
+                    password: password,
+                    bestScore: bestScore || 0
+                });
+                return true;
+            } catch (err) {
+                console.error('Firebase write error:', err);
+                return false;
+            }
+        }
+
+        // Update best score
+        async function updateUserBest(username, newBest) {
+            try {
+                await db.ref('users/' + username + '/bestScore').set(newBest);
+                return true;
+            } catch (err) {
+                console.error('Firebase update error:', err);
+                return false;
+            }
         }
 
         // ─── AUTH UI ──────────────────────────────────────────────────────
+
         function renderAuth() {
             if (currentUser) {
                 const initial = currentUser.username.charAt(0).toUpperCase();
@@ -818,39 +830,73 @@
                 document.getElementById('loginBox').classList.remove('hidden');
             });
 
-            function doLogin() {
+            // ─── Login logic ────────────────────────────────────────────
+            async function doLogin() {
                 const username = document.getElementById('loginUser').value.trim();
                 const password = document.getElementById('loginPass').value.trim();
                 const err = document.getElementById('loginError');
                 if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
-                err.textContent = '⏳ Checking...';
-                getUserData(username, (data) => {
-                    if (!data) { err.textContent = 'User not found.'; return; }
-                    if (data.password !== password) { err.textContent = 'Incorrect password.'; return; }
+
+                err.innerHTML = '<span class="loading-spinner"></span> Checking...';
+                const btn = document.getElementById('loginBtn');
+                btn.disabled = true;
+
+                try {
+                    const data = await getUserData(username);
+                    if (!data) {
+                        err.textContent = '❌ User not found.';
+                        btn.disabled = false;
+                        return;
+                    }
+                    if (data.password !== password) {
+                        err.textContent = '❌ Incorrect password.';
+                        btn.disabled = false;
+                        return;
+                    }
                     currentUser = { username, password, bestScore: data.bestScore || 0 };
                     err.textContent = '';
+                    btn.disabled = false;
                     renderAll();
-                });
+                } catch (error) {
+                    err.textContent = '❌ Network error. Check console.';
+                    btn.disabled = false;
+                }
             }
 
-            function doRegister() {
+            // ─── Register logic ──────────────────────────────────────────
+            async function doRegister() {
                 const username = document.getElementById('regUser').value.trim();
                 const password = document.getElementById('regPass').value.trim();
                 const err = document.getElementById('regError');
                 if (!username || !password) { err.textContent = 'Please fill in all fields.'; return; }
                 if (username.length < 2) { err.textContent = 'Username must be at least 2 characters.'; return; }
                 if (password.length < 3) { err.textContent = 'Password must be at least 3 characters.'; return; }
-                err.textContent = '⏳ Checking...';
-                userExists(username, (exists) => {
-                    if (exists) { err.textContent = 'Username already taken.'; return; }
-                    writeUser(username, password, 0).then(() => {
+
+                err.innerHTML = '<span class="loading-spinner"></span> Checking...';
+                const btn = document.getElementById('regBtn');
+                btn.disabled = true;
+
+                try {
+                    const exists = await userExists(username);
+                    if (exists) {
+                        err.textContent = '❌ Username already taken.';
+                        btn.disabled = false;
+                        return;
+                    }
+                    const success = await writeUser(username, password, 0);
+                    if (success) {
                         currentUser = { username, password, bestScore: 0 };
                         err.textContent = '';
+                        btn.disabled = false;
                         renderAll();
-                    }).catch(() => {
-                        err.textContent = '❌ Firebase error. Check console.';
-                    });
-                });
+                    } else {
+                        err.textContent = '❌ Failed to create account. Check Firebase.';
+                        btn.disabled = false;
+                    }
+                } catch (error) {
+                    err.textContent = '❌ Network error. Check console.';
+                    btn.disabled = false;
+                }
             }
         }
 
@@ -872,39 +918,38 @@
         }
 
         // ─── LEADERBOARD ─────────────────────────────────────────────────
-        function renderLeaderboard() {
-            fetchAllUsers((users) => {
-                const sorted = [...users].sort((a, b) => b.bestScore - a.bestScore);
-                lbCount.textContent = sorted.length;
-                if (sorted.length === 0) {
-                    leaderboardList.innerHTML = `<div class="leader-empty">No users yet. Be the first!</div>`;
-                    return;
-                }
-                let html = '';
-                sorted.forEach((u, i) => {
-                    const rank = i + 1;
-                    let rankClass = 'rank';
-                    let badge = '';
-                    if (rank === 1) { rankClass += ' gold';
-                        badge = '👑'; } else if (rank === 2) { rankClass += ' silver';
-                        badge = '🥈'; } else if (rank === 3) { rankClass += ' bronze';
-                        badge = '🥉'; }
-                    const isMe = currentUser && u.username === currentUser.username;
-                    html += `
-                        <div class="leader-entry" style="${isMe ? 'background:#2a2a5a;border:1px solid #5a6aae;' : ''}">
-                            <span class="${rankClass}">#${rank}</span>
-                            <span class="lbadge">${badge}</span>
-                            <span class="lname">${escapeHtml(u.username)} ${isMe ? '⭐' : ''}</span>
-                            <span class="lscore">${u.bestScore}</span>
-                        </div>
-                    `;
-                });
-                leaderboardList.innerHTML = html;
+        async function renderLeaderboard() {
+            const users = await fetchAllUsers();
+            const sorted = [...users].sort((a, b) => b.bestScore - a.bestScore);
+            lbCount.textContent = sorted.length;
+            if (sorted.length === 0) {
+                leaderboardList.innerHTML = `<div class="leader-empty">No users yet. Be the first!</div>`;
+                return;
+            }
+            let html = '';
+            sorted.forEach((u, i) => {
+                const rank = i + 1;
+                let rankClass = 'rank';
+                let badge = '';
+                if (rank === 1) { rankClass += ' gold';
+                    badge = '👑'; } else if (rank === 2) { rankClass += ' silver';
+                    badge = '🥈'; } else if (rank === 3) { rankClass += ' bronze';
+                    badge = '🥉'; }
+                const isMe = currentUser && u.username === currentUser.username;
+                html += `
+                    <div class="leader-entry" style="${isMe ? 'background:#2a2a5a;border:1px solid #5a6aae;' : ''}">
+                        <span class="${rankClass}">#${rank}</span>
+                        <span class="lbadge">${badge}</span>
+                        <span class="lname">${escapeHtml(u.username)} ${isMe ? '⭐' : ''}</span>
+                        <span class="lscore">${u.bestScore}</span>
+                    </div>
+                `;
             });
+            leaderboardList.innerHTML = html;
         }
 
         // ─── PROFILE TAB ─────────────────────────────────────────────────
-        function renderProfile() {
+        async function renderProfile() {
             if (!currentUser) {
                 profileContainer.innerHTML = `
                     <div class="auth-box" style="max-width:100%;text-align:center;padding:40px 20px;">
@@ -914,8 +959,8 @@
                 `;
                 return;
             }
-            // Re-fetch latest best from Firebase
-            getUserData(currentUser.username, (data) => {
+            try {
+                const data = await getUserData(currentUser.username);
                 if (data) {
                     currentUser.bestScore = data.bestScore || 0;
                 }
@@ -939,42 +984,39 @@
                         </div>
                     </div>
                 `;
-            });
+            } catch (e) {
+                profileContainer.innerHTML = `<div class="auth-box" style="max-width:100%;text-align:center;padding:40px 20px;color:#f87171;">❌ Failed to load profile.</div>`;
+            }
         }
 
-        // ─── EXPORT / IMPORT (as backup) ─────────────────────────────────
-        function exportData() {
-            fetchAllUsers((users) => {
-                const dataStr = JSON.stringify(users, null, 2);
-                const blob = new Blob([dataStr], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'snake_leaderboard_backup.txt';
-                a.click();
-                URL.revokeObjectURL(url);
-            });
+        // ─── EXPORT / IMPORT (backup) ────────────────────────────────────
+        async function exportData() {
+            const users = await fetchAllUsers();
+            const dataStr = JSON.stringify(users, null, 2);
+            const blob = new Blob([dataStr], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'snake_leaderboard_backup.txt';
+            a.click();
+            URL.revokeObjectURL(url);
         }
 
         function importData(file) {
             const reader = new FileReader();
-            reader.onload = (e) => {
+            reader.onload = async (e) => {
                 try {
                     const data = JSON.parse(e.target.result);
                     if (!Array.isArray(data)) throw new Error('Not an array');
-                    // Write each user to Firebase
-                    let promises = data.map(u => {
+                    let successCount = 0;
+                    for (const u of data) {
                         if (u.username && u.password !== undefined) {
-                            return writeUser(u.username, u.password, u.bestScore || 0);
+                            const ok = await writeUser(u.username, u.password, u.bestScore || 0);
+                            if (ok) successCount++;
                         }
-                        return Promise.resolve();
-                    });
-                    Promise.all(promises).then(() => {
-                        alert('✅ Data imported successfully to Firebase!');
-                        renderAll();
-                    }).catch(() => {
-                        alert('❌ Error writing to Firebase.');
-                    });
+                    }
+                    alert(`✅ Imported ${successCount} users successfully to Firebase!`);
+                    renderAll();
                 } catch (_) {
                     alert('❌ Invalid file format. Must be a valid .txt export.');
                 }
@@ -1358,12 +1400,12 @@
             if (animFrame) cancelAnimationFrame(animFrame);
             animLoop();
 
-            // Refresh leaderboard periodically (every 10s)
+            // Refresh leaderboard every 15s
             setInterval(() => {
                 if (document.querySelector('[data-tab="billboard"].active')) {
                     renderLeaderboard();
                 }
-            }, 10000);
+            }, 15000);
         }
 
         // ─── START ───────────────────────────────────────────────────────
